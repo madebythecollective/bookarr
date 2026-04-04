@@ -2,16 +2,49 @@
 
 This guide covers installing Bookarr on macOS, Linux, and Windows.
 
+## Recommended: Download the installer
+
+The easiest way to install Bookarr is to download the installer for your platform from the [Releases page](https://github.com/johnhowrey/bookarr-public/releases/latest). No Python installation or command-line knowledge is required.
+
+| Platform | File | What to do |
+|---|---|---|
+| **macOS** | `Bookarr-x.x.x-macos.dmg` | Open the DMG, drag Bookarr to your Applications folder, launch it. |
+| **Windows** | `Bookarr-x.x.x-windows-setup.exe` | Run the installer. Bookarr appears in your Start Menu. |
+
+After launching, open [http://localhost:8585](http://localhost:8585) in your browser to access the Bookarr web UI.
+
+### macOS installer details
+
+- The Bookarr app bundles everything it needs — no Python installation required.
+- Data (database, cover art cache) is stored in `~/Library/Application Support/Bookarr/`.
+- To uninstall, drag Bookarr out of your Applications folder. Optionally delete the data directory.
+
+### Windows installer details
+
+- The installer includes everything — no Python installation required.
+- You can choose to add a Desktop shortcut and auto-start with Windows.
+- The installer can add a Windows Firewall rule for port 8585.
+- Data (database, cover art cache) is stored in `%APPDATA%\Bookarr\`.
+- To uninstall, use "Add or Remove Programs" in Windows Settings.
+
 ## Requirements
 
-- **Python 3.10 or later.** Bookarr uses standard library features introduced in Python 3.10.
-- **pip.** The Python package installer, included with most Python distributions.
-- **Prowlarr** (recommended). Usenet and torrent indexer manager. Bookarr searches through Prowlarr's API.
-- **NZBGet** or a **torrent client** (recommended). At least one download client for automated downloads.
+Whether you use the installer or run from source, you need:
 
-Bookarr itself has three Python dependencies: `pillow`, `requests`, and `beautifulsoup4`. These are installed automatically by the install script or via pip.
+- **[Prowlarr](https://prowlarr.com/)** — Usenet and torrent indexer manager. Bookarr searches through Prowlarr's API.
+- **[NZBGet](https://nzbget.com/)** or a **torrent client** — At least one download client for automated downloads.
 
-## macOS
+These are configured through the Bookarr **Settings** page after installation. If you already use Sonarr or Radarr, your existing Prowlarr and download client work with Bookarr.
+
+---
+
+## Alternative: Install from source
+
+The following options are for users who prefer running from source. Python 3.10 or later and pip are required.
+
+Bookarr has three Python dependencies: `pillow`, `requests`, and `beautifulsoup4`. These are installed automatically by the install script or via pip.
+
+## macOS (from source)
 
 ### Option 1: Install script
 

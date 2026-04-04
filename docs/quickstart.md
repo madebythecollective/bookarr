@@ -6,11 +6,19 @@ Get Bookarr running and searching for books in under 5 minutes.
 
 Before you begin, make sure you have:
 
-- Python 3.10 or later installed
 - A running [Prowlarr](https://prowlarr.com/) instance with at least one indexer configured
 - A running [NZBGet](https://nzbget.com/) instance (or a torrent client)
 
 ## Step 1: Install and start Bookarr
+
+**Option A: Download the installer (recommended)**
+
+Download the installer for your platform from the [Releases page](https://github.com/johnhowrey/bookarr-public/releases/latest):
+
+- **macOS:** Open the `.dmg` and drag Bookarr to Applications. Launch it.
+- **Windows:** Run the `.exe` installer. Launch Bookarr from the Start Menu.
+
+**Option B: Run from source**
 
 ```bash
 git clone https://github.com/johnhowrey/bookarr-public.git

@@ -33,12 +33,38 @@ sys.stdout.reconfigure(line_buffering=True)
 sys.stderr.reconfigure(line_buffering=True)
 
 # ---------------------------------------------------------------------------
-# Configuration
+# Configuration — path resolution
 # ---------------------------------------------------------------------------
+# When running from source, all paths are relative to this script file.
+# When running as a packaged app (PyInstaller), bundled assets (templates,
+# static files) are inside the frozen bundle, while mutable data (database,
+# covers, logs) goes to a platform-appropriate user data directory.
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bookarr.db")
-TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
-COVER_CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "covers")
+def _get_paths():
+    if getattr(sys, 'frozen', False):
+        # Running as a PyInstaller bundle
+        bundle_dir = sys._MEIPASS
+        if sys.platform == 'darwin':
+            data_dir = os.path.join(os.path.expanduser("~"), "Library",
+                                    "Application Support", "Bookarr")
+        elif sys.platform == 'win32':
+            data_dir = os.path.join(os.environ.get("APPDATA",
+                                    os.path.expanduser("~")), "Bookarr")
+        else:
+            data_dir = os.path.join(os.path.expanduser("~"), ".bookarr")
+        os.makedirs(data_dir, exist_ok=True)
+    else:
+        # Running from source — everything in the script directory
+        bundle_dir = os.path.dirname(os.path.abspath(__file__))
+        data_dir = bundle_dir
+    return bundle_dir, data_dir
+
+_BUNDLE_DIR, _DATA_DIR = _get_paths()
+
+DB_PATH = os.path.join(_DATA_DIR, "bookarr.db")
+TEMPLATE_DIR = os.path.join(_BUNDLE_DIR, "templates")
+COVER_CACHE_DIR = os.path.join(_DATA_DIR, "static", "covers")
+STATIC_DIR = os.path.join(_BUNDLE_DIR, "static")
 
 # --- Initial defaults (seeded into DB on first run, then managed via Settings UI) ---
 # For a fresh install, set these to your values. After first run, use Settings.
@@ -3187,7 +3213,13 @@ class BookarrHandler(BaseHTTPRequestHandler):
         html_response(self, html)
 
     def _serve_static(self, path):
-        fpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), path.lstrip("/"))
+        rel = path.lstrip("/")
+        # Covers are mutable (cached at runtime) — serve from data dir
+        if rel.startswith("static/covers/"):
+            fpath = os.path.join(_DATA_DIR, rel)
+        else:
+            # Bundled static assets (favicons, etc.)
+            fpath = os.path.join(_BUNDLE_DIR, rel)
         if not os.path.isfile(fpath):
             self.send_error(404)
             return

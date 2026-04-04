@@ -17,7 +17,22 @@ Bookarr searches usenet and torrent indexers via Prowlarr, downloads via NZBGet 
 - **Preferred format** — Choose EPUB, MOBI, PDF or any — matching results get priority
 - **Single-file app** — One Python script, SQLite database, no complex setup
 
-## Quick start
+## Download
+
+Download the latest release for your platform — no Python or technical setup required:
+
+| Platform | Download | Notes |
+|---|---|---|
+| **macOS** | [Bookarr-0.2.0-macos.dmg](https://github.com/johnhowrey/bookarr-public/releases/latest) | Open the DMG and drag Bookarr to Applications |
+| **Windows** | [Bookarr-0.2.0-windows-setup.exe](https://github.com/johnhowrey/bookarr-public/releases/latest) | Run the installer, launch from Start Menu |
+| **Docker** | See [Docker install](docs/installation.md#docker) | `docker compose up -d` |
+| **From source** | See below | Requires Python 3.10+ |
+
+After launching, open [http://localhost:8585](http://localhost:8585) and configure your connections in **Settings**.
+
+### From source
+
+For developers or if you prefer running from source:
 
 ```bash
 git clone https://github.com/johnhowrey/bookarr-public.git
@@ -26,15 +41,16 @@ pip install -r requirements.txt
 python3 bookarr.py
 ```
 
-Open [http://localhost:8585](http://localhost:8585) in your browser. Configure your Prowlarr and NZBGet connections in **Settings**, add an author, and start searching.
-
-For detailed setup instructions, see the [Quick start guide](docs/quickstart.md).
+For detailed setup, see the [installation guide](docs/installation.md) and [quick start](docs/quickstart.md).
 
 ## Requirements
 
-- Python 3.10 or later
+Bookarr needs at least one indexer manager and one download client:
+
 - [Prowlarr](https://prowlarr.com/) — usenet/torrent indexer manager
 - [NZBGet](https://nzbget.com/) or a torrent client (qBittorrent, Transmission)
+
+These are configured through the Bookarr Settings page after installation. If you're already running Sonarr or Radarr, your existing Prowlarr and download client work with Bookarr too.
 
 ## Documentation
 

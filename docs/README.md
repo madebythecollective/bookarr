@@ -28,6 +28,10 @@ Welcome to the Bookarr documentation. This guide covers everything from first-ru
 - [Folder structure](folder-structure.md) - How files are organized on disk
 - [Running as a service](service.md) - macOS launchd, Linux systemd, and Windows setup
 
+## Contributing
+
+- [Building installers](building.md) - Build macOS .dmg and Windows .exe installers from source
+
 ## Legal
 
 - [Terms of Use](../TERMS.md)
