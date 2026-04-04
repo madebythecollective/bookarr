@@ -1,0 +1,14 @@
+[Unit]
+Description=Bookarr — Book Manager and Automation
+After=network.target
+
+[Service]
+Type=simple
+User=BOOKARR_USER
+WorkingDirectory=BOOKARR_PATH
+ExecStart=/usr/bin/env python3 BOOKARR_PATH/bookarr.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

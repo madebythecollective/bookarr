@@ -1,0 +1,2021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bookarr</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+<link rel="mask-icon" href="/static/favicon.svg" color="#e26a2c">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: #f5f0e6; --bg2: #ffffff; --bg3: #e8e1d4; --bg4: #d2c9ba;
+    --accent: #e26a2c; --accent-dim: rgba(226,106,44,0.10);
+    --text: #2d2a26; --text2: #6b6358; --text3: #9a9184;
+    --emerald: #008569; --emerald-dim: rgba(0,133,105,0.10);
+    --amber: #c47a20; --amber-dim: rgba(196,122,32,0.10);
+    --rose: #8c1e46; --rose-dim: rgba(140,30,70,0.10);
+    --sky: #0078aa; --sky-dim: rgba(0,120,170,0.10);
+    --sidebar-bg: #3a342c; --sidebar-border: #4a4238;
+    --radius: 4px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Jost', 'Futura', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--text); }
+h1, h2, h3 { font-family: 'Jost', 'Futura', sans-serif; font-weight: 600; letter-spacing: -0.01em; }
+
+/* Sidebar */
+.sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; width: 200px;
+    background: var(--sidebar-bg);
+    border-right: none;
+    display: flex; flex-direction: column; z-index: 50;
+}
+.sidebar .logo {
+    padding: 28px 22px;
+    font-family: 'Jost', 'Futura', sans-serif;
+    font-size: 22px; font-weight: 700; color: #f5f0e6;
+    letter-spacing: 3px; text-transform: uppercase;
+    border-bottom: 1px solid var(--sidebar-border);
+}
+.sidebar nav { padding: 16px 10px; flex: 1; }
+.sidebar nav button {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 11px 16px; border: none; background: none;
+    color: #9a9184; font-family: 'Jost', 'Futura', sans-serif;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    border-radius: var(--radius); text-align: left; margin-bottom: 4px;
+    transition: all 0.2s; letter-spacing: 0.8px; text-transform: uppercase;
+}
+.sidebar nav button:hover { background: rgba(255,255,255,0.08); color: #e8e1d4; }
+.sidebar nav button.active {
+    background: var(--accent); color: #ffffff;
+    font-weight: 700; box-shadow: 0 2px 12px rgba(226,106,44,0.3);
+}
+.sidebar .version {
+    padding: 12px 16px; font-size: 9px; color: #6b6358;
+    border-top: 1px solid var(--sidebar-border); letter-spacing: 2px; text-transform: uppercase;
+}
+
+/* Main content */
+.main { margin-left: 200px; min-height: 100vh; }
+
+/* Top bar */
+.topbar {
+    background: rgba(245,240,230,0.92); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--bg3);
+    padding: 14px 28px; display: flex; align-items: center; gap: 14px;
+    position: sticky; top: 0; z-index: 40;
+}
+.topbar .search-box { flex: 1; max-width: 500px; position: relative; }
+.topbar .search-box input {
+    width: 100%; padding: 10px 14px 10px 40px;
+    background: var(--bg2); border: 1px solid var(--bg4);
+    border-radius: var(--radius); color: var(--text);
+    font-family: 'Jost', 'Futura', sans-serif; font-size: 13px;
+    transition: border-color 0.2s;
+}
+.topbar .search-box input::placeholder { color: var(--text3); }
+.topbar .search-box input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(226,106,44,0.15); }
+.topbar .search-box .icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 14px; }
+.topbar .actions { margin-left: auto; display: flex; gap: 8px; }
+
+/* Container */
+.container { padding: 28px; }
+
+/* Stats */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 28px; }
+.stat-card {
+    background: var(--bg2); border: 1px solid var(--bg3);
+    border-radius: var(--radius); padding: 18px 22px;
+    transition: border-color 0.2s;
+}
+.stat-card:hover { border-color: var(--bg4); }
+.stat-card .num { font-family: 'Jost', 'Futura', sans-serif; font-size: 34px; font-weight: 700; line-height: 1; }
+.stat-card .label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 2px; margin-top: 6px; font-weight: 500; }
+
+/* Buttons */
+.btn {
+    padding: 8px 16px; border: none; border-radius: var(--radius);
+    cursor: pointer; font-family: 'Jost', 'Futura', sans-serif;
+    font-size: 12px; font-weight: 600; transition: all 0.2s;
+    letter-spacing: 0.5px; text-transform: uppercase;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn-accent { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(226,106,44,0.25); }
+.btn-green { background: var(--emerald); color: #fff; }
+.btn-blue { background: var(--sky); color: #fff; }
+.btn-sm { padding: 5px 11px; font-size: 10px; }
+.btn-outline { background: none; border: 1px solid var(--bg4); color: var(--text2); }
+.btn-outline:hover { border-color: var(--text2); color: var(--text); transform: none; }
+.btn-danger { background: none; border: 1px solid var(--rose); color: var(--rose); }
+.btn-danger:hover { background: var(--rose-dim); transform: none; }
+
+/* Badges */
+.badge {
+    display: inline-block; padding: 3px 8px; border-radius: 3px;
+    font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+}
+.b-green { background: var(--emerald-dim); color: var(--emerald); }
+.b-yellow { background: var(--amber-dim); color: var(--amber); }
+.b-red { background: var(--rose-dim); color: var(--rose); }
+.b-blue { background: var(--sky-dim); color: var(--sky); }
+.b-gray { background: rgba(154,145,132,0.12); color: var(--text3); }
+
+/* Book grid */
+.book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 18px; }
+.book-grid.size-sm { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+.book-grid.size-lg { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 22px; }
+.book-grid.size-xl { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; }
+.book-card {
+    background: var(--bg2); border: 1px solid var(--bg3);
+    border-radius: var(--radius); overflow: hidden;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    cursor: pointer;
+}
+.book-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+    border-color: var(--bg4);
+}
+.book-card .poster {
+    width: 100%; aspect-ratio: 2/3;
+    background: var(--bg3);
+    position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+}
+.book-card .poster img { width: 100%; height: 100%; object-fit: cover; }
+.book-card .poster .ph { font-size: 44px; opacity: 0.15; }
+.book-card .poster .tag { position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.88) !important; backdrop-filter: blur(4px); font-size: 10px; padding: 3px 8px; }
+.book-card .poster .bar { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; }
+.book-card .poster .bar-green { background: var(--emerald); }
+.book-card .poster .bar-yellow { background: var(--amber); }
+.book-card .poster .bar-blue { background: var(--sky); }
+.book-card .poster .bar-gray { background: var(--bg4); }
+.book-card .meta { padding: 10px 12px; }
+.book-card .meta .title {
+    font-family: 'Jost', 'Futura', sans-serif; font-size: 13px; font-weight: 600;
+    line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    margin-bottom: 4px;
+}
+.book-card .meta .author { font-size: 12px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.book-card .meta .year { font-size: 11px; color: var(--text3); }
+.book-card .meta .path { font-size: 10px; color: var(--text3); margin-top: 4px; word-break: break-all; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; opacity: 0.6; }
+
+/* List view */
+.book-list .book-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 14px; border-bottom: 1px solid var(--bg3);
+    background: var(--bg2); cursor: pointer;
+    transition: background 0.15s;
+}
+.book-list .book-row:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+.book-list .book-row:last-child { border-radius: 0 0 var(--radius) var(--radius); border-bottom: none; }
+.book-list .book-row:hover { background: var(--accent-dim); }
+.book-list .row-cover { width: 36px; height: 54px; border-radius: 3px; overflow: hidden; flex-shrink: 0; background: var(--bg3); display: flex; align-items: center; justify-content: center; }
+.book-list .row-cover img { width: 100%; height: 100%; object-fit: cover; }
+.book-list .row-info { flex: 1; min-width: 0; }
+.book-list .row-title { font-family: 'Jost', 'Futura', sans-serif; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.book-list .row-detail { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.book-list .row-status { flex-shrink: 0; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; background: var(--bg2); border: 1px solid var(--bg3); border-radius: var(--radius); overflow: hidden; }
+th { background: var(--bg3); text-align: left; padding: 10px 14px; font-size: 10px; text-transform: uppercase; color: var(--text3); letter-spacing: 1.5px; font-weight: 600; }
+td { padding: 10px 14px; border-top: 1px solid var(--bg3); font-size: 13px; }
+tr:hover td { background: var(--accent-dim); }
+
+/* Modals */
+.modal-bg {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(45,42,38,0.55); backdrop-filter: blur(4px);
+    z-index: 100; display: flex; align-items: flex-start; justify-content: center;
+    padding-top: 80px;
+    animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } }
+.modal {
+    background: var(--bg2); border: 1px solid var(--bg3);
+    border-radius: 8px; padding: 28px; width: 600px; max-height: 75vh; overflow-y: auto;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.15);
+    animation: slideUp 0.25s ease;
+    position: relative;
+}
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } }
+.modal h2 { font-size: 20px; margin-bottom: 18px; color: var(--accent); }
+.modal input[type="text"] {
+    width: 100%; padding: 11px 16px; background: var(--bg);
+    border: 1px solid var(--bg4); border-radius: var(--radius);
+    color: var(--text); font-family: 'Jost', 'Futura', sans-serif; font-size: 13px;
+    margin-bottom: 14px;
+}
+.modal input::placeholder { color: var(--text3); }
+.modal input:focus { outline: none; border-color: var(--accent); }
+.modal-close {
+    position: absolute; top: 16px; right: 16px;
+    background: none; border: 1px solid var(--bg4); color: var(--text3);
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; line-height: 1; transition: all 0.15s;
+}
+.modal-close:hover { border-color: var(--text2); color: var(--text); background: var(--bg); }
+
+/* Search results */
+.sr {
+    padding: 14px; border: 1px solid var(--bg3); border-radius: var(--radius);
+    margin-bottom: 8px; cursor: pointer; display: flex; gap: 14px; align-items: center;
+    transition: all 0.15s;
+}
+.sr:hover { border-color: var(--accent); background: var(--accent-dim); }
+.sr .sr-cover { width: 40px; height: 60px; background: var(--bg3); border-radius: 3px; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--bg4); }
+.sr .sr-cover img { width: 100%; height: 100%; object-fit: cover; }
+.sr .sr-info { flex: 1; min-width: 0; }
+.sr .sr-title { font-family: 'Jost', 'Futura', sans-serif; font-size: 14px; font-weight: 600; }
+.sr .sr-detail { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+/* Filter bar */
+.filter-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+.filter-bar .pill {
+    padding: 5px 14px; border: 1px solid var(--bg4); border-radius: 20px;
+    font-size: 10px; cursor: pointer; color: var(--text3); background: none;
+    font-family: 'Jost', 'Futura', sans-serif; transition: all 0.15s;
+    letter-spacing: 0.8px; text-transform: uppercase; font-weight: 500;
+}
+.filter-bar .pill:hover { border-color: var(--text3); color: var(--text); }
+.filter-bar .pill.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 700; }
+
+/* Section header */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
+.section-header h2 { font-size: 20px; }
+
+/* Author cards */
+.author-card {
+    background: var(--bg2); border: 1px solid var(--bg3);
+    border-radius: var(--radius); padding: 18px; cursor: pointer;
+    transition: all 0.2s;
+}
+.author-card:hover { border-color: var(--accent); background: var(--accent-dim); transform: translateY(-2px); }
+.author-card .aname { font-family: 'Jost', 'Futura', sans-serif; font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.author-card .ameta { display: flex; gap: 10px; font-size: 11px; color: var(--text3); }
+
+/* Tabs */
+.tab-bar {
+    display: flex; gap: 0; border-bottom: 2px solid var(--bg3); margin-bottom: 20px;
+}
+.tab-btn {
+    padding: 10px 20px; border: none; background: none;
+    color: var(--text3); font-family: 'Jost', 'Futura', sans-serif;
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -2px;
+    transition: all 0.2s; letter-spacing: 0.8px; text-transform: uppercase;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+.tab-btn .count {
+    display: inline-block; margin-left: 6px; padding: 1px 6px;
+    background: var(--bg3); border-radius: 10px; font-size: 10px;
+    font-weight: 600; color: var(--text3);
+}
+.tab-btn.active .count { background: var(--accent-dim); color: var(--accent); }
+
+/* View controls */
+.view-controls {
+    display: flex; gap: 8px; align-items: center;
+}
+.view-btn {
+    padding: 5px 8px; border: 1px solid var(--bg4); border-radius: 4px;
+    background: none; color: var(--text3); cursor: pointer; font-size: 14px;
+    transition: all 0.15s; line-height: 1;
+}
+.view-btn:hover { border-color: var(--text3); color: var(--text); }
+.view-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+.size-slider {
+    width: 80px; height: 4px; -webkit-appearance: none; appearance: none;
+    background: var(--bg4); border-radius: 2px; outline: none;
+}
+.size-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px;
+    background: var(--accent); border-radius: 50%; cursor: pointer;
+}
+
+/* Seed category cards */
+.seed-card {
+    background: var(--bg2); border: 1px solid var(--bg3);
+    border-radius: var(--radius); padding: 18px;
+    transition: all 0.2s; display: flex; flex-direction: column; gap: 10px;
+}
+.seed-card:hover { border-color: var(--bg4); }
+.seed-card .seed-name { font-family: 'Jost', 'Futura', sans-serif; font-size: 15px; font-weight: 600; }
+.seed-card .seed-desc { font-size: 11px; color: var(--text3); line-height: 1.4; }
+.seed-card .seed-meta { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
+
+/* Loading */
+.loading { text-align: center; padding: 60px; color: var(--text3); font-size: 13px; }
+
+/* Search indicator on book cards */
+.book-card .poster .search-indicator {
+    position: absolute; top: 8px; left: 8px;
+    width: 18px; height: 18px;
+    border: 2px solid var(--amber); border-top-color: transparent;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.book-card .poster .search-count {
+    position: absolute; bottom: 8px; right: 8px;
+    background: rgba(0,0,0,0.65); color: #fff;
+    font-size: 9px; font-weight: 600; padding: 2px 6px;
+    border-radius: 10px; letter-spacing: 0.5px;
+}
+
+/* Settings sections */
+.settings-section {
+    background: var(--bg2); border: 1px solid var(--bg3);
+    border-radius: var(--radius); padding: 28px; max-width: 640px; margin-bottom: 20px;
+}
+.settings-section h3 {
+    font-size: 16px; margin-bottom: 16px; color: var(--accent);
+    display: flex; align-items: center; gap: 10px;
+}
+.settings-section h3 .section-icon { font-size: 18px; opacity: 0.7; }
+.settings-field { margin-bottom: 20px; }
+.settings-field:last-child { margin-bottom: 0; }
+.test-btn {
+    padding: 6px 14px; font-size: 10px; border: 1px solid var(--bg4);
+    background: var(--bg3); color: var(--text2); border-radius: var(--radius);
+    cursor: pointer; font-family: 'Jost', sans-serif; font-weight: 600;
+    letter-spacing: 0.5px; text-transform: uppercase; transition: all 0.15s;
+}
+.test-btn:hover { border-color: var(--text3); color: var(--text); }
+.test-result { font-size: 11px; margin-top: 6px; padding: 6px 10px; border-radius: var(--radius); display: none; }
+.test-result.success { display: block; background: var(--emerald-dim); color: var(--emerald); }
+.test-result.fail { display: block; background: var(--rose-dim); color: var(--rose); }
+
+/* Toast */
+.toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--sidebar-bg); color: #f5f0e6;
+    padding: 14px 22px; border-radius: var(--radius);
+    border-left: 3px solid var(--accent);
+    z-index: 200; animation: slideIn 0.3s ease;
+    font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+@keyframes slideIn { from { transform: translateX(100px); opacity: 0; } }
+
+/* Empty state */
+.empty-state {
+    text-align: center; padding: 100px 20px;
+    animation: fadeInUp 0.5s ease;
+}
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } }
+.empty-state .icon { font-size: 64px; margin-bottom: 20px; opacity: 0.2; }
+.empty-state h3 { font-size: 24px; color: var(--text2); margin-bottom: 8px; }
+.empty-state p { color: var(--text3); max-width: 400px; margin: 0 auto 24px; line-height: 1.6; font-size: 14px; }
+
+/* Book detail */
+.book-detail-header {
+    display: flex; gap: 28px; padding: 28px;
+    background: var(--bg2); border: 1px solid var(--bg3);
+    border-radius: var(--radius); margin-bottom: 24px;
+}
+.book-detail-cover {
+    width: 180px; flex-shrink: 0; aspect-ratio: 2/3;
+    background: var(--bg3);
+    border-radius: var(--radius); overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+}
+.book-detail-cover img { width: 100%; height: 100%; object-fit: cover; }
+.book-detail-cover .ph { font-size: 64px; opacity: 0.15; }
+.book-detail-info { flex: 1; min-width: 0; }
+.book-detail-info h1 { font-size: 26px; margin-bottom: 6px; color: var(--text); }
+.book-detail-info .author-link { font-size: 14px; color: var(--accent); cursor: pointer; margin-bottom: 8px; }
+.book-detail-info .author-link:hover { color: var(--text); }
+.book-detail-info .meta-line { font-size: 12px; color: var(--text3); margin-bottom: 12px; }
+.book-detail-info .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.book-detail-info .sibling-link { font-size: 12px; color: var(--sky); margin-top: 12px; cursor: pointer; }
+.book-detail-info .sibling-link:hover { color: var(--text); }
+.book-detail-info .file-path { font-size: 11px; color: var(--text3); margin-top: 10px; word-break: break-all; opacity: 0.7; }
+.book-detail-section { margin-bottom: 28px; }
+.book-detail-section h3 {
+    font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--text2); margin-bottom: 14px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--bg3);
+}
+.other-books-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px;
+}
+
+/* Modal stacking — action modals above book detail */
+#search-modal, #add-book-modal, #add-author-modal, #folder-modal, #seed-modal { z-index: 110; }
+
+/* Button press feedback */
+.btn:active { transform: scale(0.96) !important; opacity: 0.85; }
+.btn.loading { pointer-events: none; opacity: 0.6; padding: 8px 16px; text-align: center; }
+.pill {
+    padding: 5px 14px; border: 1px solid var(--bg4); border-radius: 20px;
+    font-size: 10px; cursor: pointer; color: var(--text3); background: none;
+    font-family: 'Jost', 'Futura', sans-serif; transition: all 0.15s;
+    letter-spacing: 0.8px; text-transform: uppercase; font-weight: 500;
+}
+.pill:hover { border-color: var(--text3); color: var(--text); }
+.pill.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 700; }
+.pill:active { transform: scale(0.95); }
+
+/* Subtle hint text */
+.hint { font-size: 11px; color: var(--text3); letter-spacing: 0.5px; font-weight: 400; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .sidebar { width: 56px; }
+    .sidebar .logo { font-size: 12px; padding: 16px 8px; text-align: center; letter-spacing: 1px; }
+    .sidebar nav button span { display: none; }
+    .main { margin-left: 56px; }
+    .book-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+    .book-detail-header { flex-direction: column; align-items: center; text-align: center; }
+    .book-detail-cover { width: 140px; }
+    .book-detail-info .actions { justify-content: center; }
+    .other-books-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="logo">Bookarr</div>
+    <nav>
+        <button onclick="showPage('library')" id="nav-library" class="active"><span>Library</span></button>
+        <button onclick="showPage('discover')" id="nav-discover"><span>Discover</span></button>
+        <button onclick="showPage('activity')" id="nav-activity"><span>Activity</span></button>
+        <button onclick="showPage('settings')" id="nav-settings"><span>Settings</span></button>
+    </nav>
+    <div class="version">BOOKARR v1.0</div>
+</div>
+
+<div class="main">
+    <div class="topbar">
+        <div class="search-box">
+            <span class="icon">&#9906;</span>
+            <input type="text" id="global-search" placeholder="Search for a book to add..." onkeydown="if(event.key==='Enter')showAddBook(this.value)">
+        </div>
+        <div class="actions" style="display:flex;align-items:center;gap:8px;">
+            <div id="search-progress-wrap" style="display:none;align-items:center;gap:8px;">
+                <div style="width:160px;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;">
+                    <div id="search-progress-bar" style="height:100%;background:var(--accent);width:0%;transition:width 0.3s;border-radius:3px;"></div>
+                </div>
+                <span id="search-progress-text" style="font-size:10px;color:var(--text3);white-space:nowrap;letter-spacing:0.5px;text-transform:uppercase;"></span>
+            </div>
+            <button id="search-now-btn" class="btn btn-outline btn-sm" onclick="startSearchWithProgress()" title="Search for all wanted books across configured indexers">Search Now</button>
+            <button class="btn btn-accent btn-sm" onclick="showAddBook()" title="Search for a specific book to add to your library">+ Add Book</button>
+        </div>
+    </div>
+
+    <div class="container" id="app">
+        <div class="loading">Loading...</div>
+    </div>
+</div>
+
+<!-- Add Book Modal -->
+<div class="modal-bg" id="add-book-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal">
+        <button class="modal-close" onclick="this.closest('.modal-bg').style.display='none'">&times;</button>
+        <h2>Add Book</h2>
+        <input type="text" id="book-search-input" placeholder="Search by title, author, or ISBN..." oninput="debounceBookSearch(this.value)">
+        <div id="book-search-results"></div>
+    </div>
+</div>
+
+<!-- Add Author Modal -->
+<div class="modal-bg" id="add-author-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal">
+        <button class="modal-close" onclick="this.closest('.modal-bg').style.display='none'">&times;</button>
+        <h2>Add Author</h2>
+        <input type="text" id="author-search" placeholder="Search for an author..." oninput="debounceAuthorSearch(this.value)">
+        <div id="author-results"></div>
+    </div>
+</div>
+
+<!-- Indexer Search Modal -->
+<div class="modal-bg" id="search-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal">
+        <button class="modal-close" onclick="this.closest('.modal-bg').style.display='none'">&times;</button>
+        <h2 id="search-modal-title">Search</h2>
+        <input type="text" id="indexer-search" placeholder="Search for downloads..." onkeydown="if(event.key==='Enter')searchIndexers(this.value)">
+        <div id="indexer-results"></div>
+    </div>
+</div>
+
+<!-- Seed Picker Modal -->
+<div class="modal-bg" id="seed-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:700px;">
+        <button class="modal-close" onclick="this.closest('.modal-bg').style.display='none'">&times;</button>
+        <h2>Browse Lists</h2>
+        <p style="font-size:13px;color:var(--text3);margin-bottom:18px;">Choose a curated list of authors to add to your library. Their works will be imported automatically.</p>
+        <div id="seed-categories"></div>
+    </div>
+</div>
+
+<!-- Folder Browser Modal -->
+<div class="modal-bg" id="folder-modal" style="display:none" onclick="if(event.target===this)closeFolderBrowser()">
+    <div class="modal" style="max-width:500px;">
+        <button class="modal-close" onclick="closeFolderBrowser()">&times;</button>
+        <h2>Choose Folder</h2>
+        <div id="folder-breadcrumb" style="display:flex;align-items:center;gap:4px;padding:10px 14px;background:var(--bg3);border:1px solid var(--bg4);border-radius:var(--radius);margin-bottom:12px;font-size:13px;overflow-x:auto;white-space:nowrap;"></div>
+        <div id="folder-list" style="max-height:340px;overflow-y:auto;border:1px solid var(--bg4);border-radius:var(--radius);background:var(--bg);"></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+            <button class="btn" onclick="closeFolderBrowser()" style="background:var(--bg3);color:var(--text);">Cancel</button>
+            <button class="btn btn-accent" onclick="selectFolder()">Select This Folder</button>
+        </div>
+    </div>
+</div>
+
+<!-- Book Detail Modal -->
+<div class="modal-bg" id="book-detail-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:720px;max-width:95vw;padding:0;overflow:hidden;">
+        <button class="modal-close" onclick="this.closest('.modal-bg').style.display='none'" style="z-index:10;">&times;</button>
+        <div id="book-detail-content"><div class="loading">Loading...</div></div>
+    </div>
+</div>
+
+<script>
+let currentPage = 'library';
+// Restore page from URL hash on load
+(function() {
+    const hash = location.hash.replace('#','');
+    if (hash && ['library','discover','activity','settings'].includes(hash)) {
+        currentPage = hash;
+        document.getElementById('nav-library').classList.remove('active');
+        const btn = document.getElementById('nav-' + hash);
+        if (btn) btn.classList.add('active');
+    }
+})();
+let currentAuthorId = null;
+let searchTimeout = null;
+let authorDetailTab = 'ebooks';
+let viewMode = 'gallery';
+let coverSize = 'md';
+
+// Check if a search is already running on page load
+(async function checkSearchOnLoad() {
+    try {
+        const p = await fetch('/api/search/progress').then(r => r.json());
+        if (p.active) startSearchWithProgress(false);
+    } catch {}
+})();
+
+function showPage(page, authorId) {
+    currentPage = page;
+    location.hash = (page === 'author-detail') ? 'discover' : page;
+    document.querySelectorAll('.sidebar nav button').forEach(b => b.classList.remove('active'));
+    const navBtn = document.getElementById('nav-' + (page === 'author-detail' ? 'discover' : page));
+    if (navBtn) navBtn.classList.add('active');
+    if (authorId) { currentAuthorId = authorId; authorDetailTab = 'ebooks'; }
+    window.scrollTo(0, 0);
+    render();
+}
+
+async function api(path, method='GET', body=null) {
+    const opts = { method, headers: {'Content-Type': 'application/json'} };
+    if (body) opts.body = JSON.stringify(body);
+    const resp = await fetch(path, opts);
+    return resp.json();
+}
+
+function toast(msg) {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+}
+
+function fmtSize(bytes) {
+    if (!bytes) return '—';
+    if (bytes > 1e9) return (bytes/1e9).toFixed(1) + ' GB';
+    if (bytes > 1e6) return (bytes/1e6).toFixed(0) + ' MB';
+    if (bytes > 1e3) return (bytes/1e3).toFixed(0) + ' KB';
+    return bytes + ' B';
+}
+
+function timeSince(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + (dateStr.includes('Z') ? '' : 'Z'));
+    const secs = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (secs < 60) return 'just now';
+    if (secs < 3600) return Math.floor(secs/60) + 'm ago';
+    if (secs < 86400) return Math.floor(secs/3600) + 'h ago';
+    return Math.floor(secs/86400) + 'd ago';
+}
+
+function coverUrl(coverId, bookId) {
+    if (coverId && coverId !== 'None' && coverId !== 'null') return '/api/cover/' + coverId;
+    if (bookId) return '/api/cover/gen/' + bookId;
+    return '';
+}
+
+function bookCard(b, showAuthor=true) {
+    const cUrl = coverUrl(b.cover_id, b.id);
+    const typeTag = b.book_type === 'audiobook'
+        ? '<span class="badge b-blue tag">Audio</span>'
+        : '<span class="badge b-green tag">eBook</span>';
+    const barClass = {downloaded:'bar-green', wanted:'bar-yellow', downloading:'bar-blue'}[b.status] || 'bar-gray';
+
+    let img = cUrl
+        ? `<img src="${cUrl}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',textContent:'\\u{1F4D6}'}))">`
+        : '<div class="ph">\u{1F4D6}</div>';
+
+    // Search indicator for wanted/downloading books
+    let searchIndicator = '';
+    if (b.status === 'downloading') {
+        searchIndicator = '<div class="search-indicator" style="border-color:var(--sky);border-top-color:transparent;" title="Downloading..."></div>';
+    } else if (b.status === 'wanted' && b.last_searched) {
+        const ago = timeSince(b.last_searched);
+        const count = b.last_result_count || 0;
+        searchIndicator = `<div class="search-count" title="Last searched ${ago}">${count} result${count!==1?'s':''}</div>`;
+    }
+
+    return `<div class="book-card" onclick="bookAction(${b.id})">
+        <div class="poster">
+            ${img}
+            ${typeTag}
+            ${searchIndicator}
+            <div class="bar ${barClass}"></div>
+        </div>
+        <div class="meta">
+            <div class="title">${esc(b.title)}</div>
+            ${showAuthor && b.author_name ? '<div class="author">' + esc(b.author_name) + '</div>' : ''}
+            ${b.year ? '<div class="year">' + b.year + '</div>' : ''}
+            ${b.path ? '<div class="path" title="' + esc(b.path) + '">' + esc(b.path.split('/').pop()) + '</div>' : ''}
+        </div>
+    </div>`;
+}
+
+function libraryCard(b) {
+    const cUrl = coverUrl(b.cover_id, b.ebookId || b.audioId || b.id);
+    let formatTags = '';
+    if (b.hasEbook) formatTags += '<span class="badge b-green tag">eBook</span>';
+    if (b.hasAudio) formatTags += '<span class="badge b-blue tag" style="' + (b.hasEbook ? 'top:28px;' : '') + '">Audio</span>';
+    const barClass = {downloaded:'bar-green', wanted:'bar-yellow', downloading:'bar-blue'}[b.status] || 'bar-gray';
+
+    let img = cUrl
+        ? `<img src="${cUrl}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',textContent:'\\u{1F4D6}'}))">`
+        : '<div class="ph">\u{1F4D6}</div>';
+
+    // Click navigates to the ebook detail page (or audiobook if only audio)
+    const detailId = b.ebookId || b.audioId || b.id;
+
+    return `<div class="book-card" onclick="bookAction(${detailId})">
+        <div class="poster">
+            ${img}
+            ${formatTags}
+            <div class="bar ${barClass}"></div>
+        </div>
+        <div class="meta">
+            <div class="title">${esc(b.title)}</div>
+            ${b.author_name ? '<div class="author">' + esc(b.author_name) + '</div>' : ''}
+            ${b.year ? '<div class="year">' + b.year + '</div>' : ''}
+            ${b.path ? '<div class="path" title="' + esc(b.path) + '">' + esc(b.path.split('/').pop()) + '</div>' : ''}
+        </div>
+    </div>`;
+}
+
+function bookRow(b, showAuthor=true) {
+    const cUrl = coverUrl(b.cover_id, b.id);
+    const statusBadge = {
+        downloaded: '<span class="badge b-green">Have</span>',
+        wanted: '<span class="badge b-yellow">Wanted</span>',
+        downloading: '<span class="badge b-blue">Active</span>',
+        missing: '<span class="badge b-gray">Available</span>',
+    }[b.status] || '<span class="badge b-gray">Available</span>';
+    const typeBadge = b.book_type === 'audiobook'
+        ? '<span class="badge b-blue" style="margin-left:6px;">Audio</span>'
+        : '<span class="badge b-green" style="margin-left:6px;">eBook</span>';
+
+    return `<div class="book-row" onclick="bookAction(${b.id})">
+        <div class="row-cover">
+            ${cUrl ? `<img src="${cUrl}" loading="lazy" onerror="this.parentElement.textContent='\\u{1F4D6}'">` : '\u{1F4D6}'}
+        </div>
+        <div class="row-info">
+            <div class="row-title">${esc(b.title)}</div>
+            <div class="row-detail">${showAuthor && b.author_name ? esc(b.author_name) + ' &middot; ' : ''}${b.year||''}</div>
+        </div>
+        <div class="row-status">${statusBadge}${typeBadge}</div>
+    </div>`;
+}
+
+function bookAction(id) {
+    openBookDetail(id);
+}
+
+function renderBooks(books, showAuthor=true) {
+    const sizeClass = {sm:'size-sm', md:'', lg:'size-lg', xl:'size-xl'}[coverSize] || '';
+    if (viewMode === 'list') {
+        return `<div class="book-list">${books.map(b => bookRow(b, showAuthor)).join('') || '<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px;">None found.</div>'}</div>`;
+    }
+    return `<div class="book-grid ${sizeClass}">${books.map(b => bookCard(b, showAuthor)).join('') || '<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:24px;font-size:13px;">None found.</div>'}</div>`;
+}
+
+function viewControls() {
+    const sizes = [
+        {key:'sm', label:'S'},
+        {key:'md', label:'M'},
+        {key:'lg', label:'L'},
+        {key:'xl', label:'XL'},
+    ];
+    const sizeButtons = viewMode === 'gallery' ? sizes.map(s =>
+        `<button class="view-btn ${coverSize===s.key?'active':''}" onclick="coverSize='${s.key}';render()" title="Cover size ${s.label}" style="font-size:11px;padding:4px 7px;">${s.label}</button>`
+    ).join('') : '';
+
+    return `<div class="view-controls">
+        <button class="view-btn ${viewMode==='gallery'?'active':''}" onclick="viewMode='gallery';render()" title="Gallery view">&#9638;</button>
+        <button class="view-btn ${viewMode==='list'?'active':''}" onclick="viewMode='list';render()" title="List view">&#9776;</button>
+        ${sizeButtons ? '<span style="width:1px;height:16px;background:var(--bg4);margin:0 4px;"></span>' + sizeButtons : ''}
+    </div>`;
+}
+
+// --- Render ---
+async function render() {
+    const app = document.getElementById('app');
+    try {
+        switch(currentPage) {
+            case 'library': await renderLibrary(app); break;
+            case 'discover': await renderDiscover(app); break;
+            case 'author-detail': await renderAuthorDetail(app); break;
+            case 'activity': await renderActivity(app); break;
+            case 'settings': await renderSettings(app); break;
+        }
+    } catch(e) { app.innerHTML = '<div class="loading">Error loading page.</div>'; console.error(e); }
+}
+
+let libFilter = {status: '', q: '', page: 1, sort: 'title'};
+async function renderLibrary(app) {
+    const stats = await api('/api/stats');
+    const params = new URLSearchParams();
+    if (libFilter.status) params.set('status', libFilter.status);
+    if (libFilter.q) params.set('q', libFilter.q);
+    params.set('page', libFilter.page);
+    params.set('per_page', '200');
+    if (!libFilter.status) params.set('exclude_status', 'missing');
+    const data = await api('/api/books?' + params);
+
+    // Merge ebook + audiobook entries by (author_id, title) into unified cards
+    const merged = [];
+    const seen = {};
+    for (const b of data.books) {
+        const key = b.author_id + '::' + b.title;
+        if (seen[key] !== undefined) {
+            const m = merged[seen[key]];
+            if (b.book_type === 'audiobook') {
+                m.hasAudio = true;
+                m.audioId = b.id;
+                m.audioStatus = b.status;
+            } else {
+                m.hasEbook = true;
+                m.ebookId = b.id;
+                m.ebookStatus = b.status;
+            }
+            // Use the "best" status for display
+            const rank = {downloaded:3, downloading:2, wanted:1, missing:0};
+            if ((rank[b.status]||0) > (rank[m.status]||0)) {
+                m.status = b.status;
+                if (b.path) m.path = b.path;
+            }
+        } else {
+            const m = {...b,
+                hasEbook: b.book_type === 'ebook',
+                hasAudio: b.book_type === 'audiobook',
+                ebookId: b.book_type === 'ebook' ? b.id : null,
+                audioId: b.book_type === 'audiobook' ? b.id : null,
+                ebookStatus: b.book_type === 'ebook' ? b.status : null,
+                audioStatus: b.book_type === 'audiobook' ? b.status : null,
+            };
+            seen[key] = merged.length;
+            merged.push(m);
+        }
+    }
+
+    // Sort
+    if (libFilter.sort === 'title') merged.sort((a,b) => (a.title||'').localeCompare(b.title||''));
+    else if (libFilter.sort === 'author') merged.sort((a,b) => (a.author_name||'').localeCompare(b.author_name||''));
+    else if (libFilter.sort === 'recent') merged.sort((a,b) => (b.added_at||'').localeCompare(a.added_at||''));
+    else if (libFilter.sort === 'year') merged.sort((a,b) => (b.year||0) - (a.year||0));
+
+    const showCount = libFilter.page * 60;
+    const visibleBooks = merged.slice(0, showCount);
+    const hasMore = merged.length > showCount;
+
+    const pills = (items, key) => items.map(([val, label]) => {
+        const active = libFilter[key] === val ? 'active' : '';
+        return `<button class="pill ${active}" onclick="libFilter.${key}='${val}';libFilter.page=1;render()">${label}</button>`;
+    }).join('');
+
+    const statusPills = pills([['','All'],['wanted','Wanted'],['downloading','Active'],['downloaded','Have']], 'status');
+
+    let loadMore = hasMore ? `<div style="text-align:center;margin-top:24px;">
+        <button class="btn btn-outline" onclick="libFilter.page++;render()">Load More (${merged.length - showCount} remaining)</button>
+    </div>` : '';
+
+    const collectionCount = stats.wanted + stats.downloading + stats.downloaded;
+
+    app.innerHTML = `
+        <div class="stats">
+            <div class="stat-card" style="cursor:pointer;${libFilter.status===''?'border-color:var(--accent);':''}" onclick="libFilter.status='';libFilter.page=1;render()"><div class="num" style="color:var(--accent)">${collectionCount}</div><div class="label">All Books</div></div>
+            <div class="stat-card" style="cursor:pointer;${libFilter.status==='downloaded'?'border-color:var(--emerald);':''}" onclick="libFilter.status='downloaded';libFilter.page=1;render()"><div class="num" style="color:var(--emerald)">${stats.downloaded}</div><div class="label">Downloaded</div></div>
+            <div class="stat-card" style="cursor:pointer;${libFilter.status==='wanted'?'border-color:var(--amber);':''}" onclick="libFilter.status='wanted';libFilter.page=1;render()"><div class="num" style="color:var(--amber)">${stats.wanted}</div><div class="label">Wanted</div></div>
+            <div class="stat-card" style="cursor:pointer;${libFilter.status==='downloading'?'border-color:var(--sky);':''}" onclick="libFilter.status='downloading';libFilter.page=1;render()"><div class="num" style="color:var(--sky)">${stats.downloading}</div><div class="label">Downloading</div></div>
+        </div>
+        ${collectionCount === 0 ? `
+        <div class="empty-state">
+            <div class="icon">\u{1F4DA}</div>
+            <h3>Your library is empty</h3>
+            <p>Head to Discover to browse authors and add books to your collection, or use the search bar to find a specific title.</p>
+            <button class="btn btn-accent" onclick="showPage('discover')">Browse Authors</button>
+        </div>` : `
+        <div class="filter-bar">
+            <input type="text" placeholder="Filter by title or author..." value="${esc(libFilter.q)}"
+                style="padding:7px 14px;background:var(--bg3);border:1px solid var(--bg4);border-radius:20px;color:var(--text);font-family:'Jost',sans-serif;font-size:12px;width:220px;"
+                oninput="libFilter.q=this.value;libFilter.page=1;clearTimeout(searchTimeout);searchTimeout=setTimeout(render,500)">
+            <select onchange="libFilter.sort=this.value;libFilter.page=1;render()" style="padding:7px 12px;background:var(--bg3);border:1px solid var(--bg4);border-radius:20px;color:var(--text);font-family:'Jost',sans-serif;font-size:12px;cursor:pointer;">
+                <option value="title" ${libFilter.sort==='title'?'selected':''}>Sort: Title</option>
+                <option value="author" ${libFilter.sort==='author'?'selected':''}>Sort: Author</option>
+                <option value="recent" ${libFilter.sort==='recent'?'selected':''}>Sort: Recently Added</option>
+                <option value="year" ${libFilter.sort==='year'?'selected':''}>Sort: Year</option>
+            </select>
+            <span class="hint" style="margin-left:auto;">Click any book for details &middot; ${merged.length} titles</span>
+        </div>
+        <div class="book-grid">
+            ${visibleBooks.map(b => libraryCard(b)).join('') || '<div style="grid-column:1/-1" class="empty-state"><h3>No matches</h3><p>Try adjusting your filters.</p></div>'}
+        </div>
+        ${loadMore}`}
+    `;
+}
+
+let discoverFilter = {q: '', page: 1, source: ''};
+
+// Map seed_source keys to display labels and badge classes
+const SOURCE_BADGES = {
+    pulitzer_fiction: {label: 'Pulitzer Fiction', cls: 'b-yellow'},
+    pulitzer_drama: {label: 'Pulitzer Drama', cls: 'b-yellow'},
+    pulitzer_poetry: {label: 'Pulitzer Poetry', cls: 'b-yellow'},
+    pulitzer_nonfiction: {label: 'Pulitzer Nonfiction', cls: 'b-yellow'},
+    nobel: {label: 'Nobel', cls: 'b-green'},
+    booker: {label: 'Booker', cls: 'b-blue'},
+    american_classics: {label: 'American Classics', cls: 'b-yellow'},
+    world_classics: {label: 'World Classics', cls: 'b-green'},
+    national_book_award: {label: 'Nat\'l Book Award', cls: 'b-blue'},
+    trending: {label: 'Trending', cls: 'b-blue'},
+};
+function sourceBadge(src) {
+    if (!src || src === 'manual') return '';
+    const info = SOURCE_BADGES[src] || {label: src.replace(/_/g,' '), cls: 'b-gray'};
+    return `<span class="badge ${info.cls}" style="font-size:8px;padding:2px 6px;margin-left:4px;">${info.label}</span>`;
+}
+
+async function renderDiscover(app) {
+    const stats = await api('/api/stats');
+    const authors = await api('/api/authors');
+
+    let filtered = authors;
+    if (discoverFilter.q) {
+        const q = discoverFilter.q.toLowerCase();
+        filtered = filtered.filter(a => a.name.toLowerCase().includes(q));
+    }
+    if (discoverFilter.source) {
+        filtered = filtered.filter(a => (a.seed_source || 'manual') === discoverFilter.source);
+    }
+
+    const showCount = discoverFilter.page * 36;
+    const visibleAuthors = filtered.slice(0, showCount);
+    const hasMore = filtered.length > showCount;
+
+    // Collect unique source values for filter pills
+    const sourceCounts = {};
+    authors.forEach(a => { const s = a.seed_source || 'manual'; sourceCounts[s] = (sourceCounts[s]||0) + 1; });
+    const sourceKeys = Object.keys(sourceCounts).sort((a,b) => {
+        if (a === 'manual') return 1; if (b === 'manual') return -1; return a.localeCompare(b);
+    });
+    const sourcePills = sourceKeys.map(s => {
+        const info = SOURCE_BADGES[s] || (s === 'manual' ? {label:'Manual'} : {label:s.replace(/_/g,' ')});
+        const active = discoverFilter.source === s ? 'active' : '';
+        return `<button class="pill ${active}" onclick="discoverFilter.source=discoverFilter.source==='${s}'?'':'${s}';discoverFilter.page=1;render()">${info.label} <span style="opacity:0.6">${sourceCounts[s]}</span></button>`;
+    }).join('');
+
+    let authorCards = visibleAuthors.map(a => {
+        const ebookCount = a.ebook_count || 0;
+        const audioCount = a.audiobook_count || 0;
+        return `
+        <div class="author-card" onclick="showPage('author-detail', ${a.id})">
+            <div class="aname">${esc(a.name)}${sourceBadge(a.seed_source)}</div>
+            <div class="ameta">
+                <span>${ebookCount} eBooks</span>
+                ${audioCount ? '<span>' + audioCount + ' Audiobooks</span>' : ''}
+                ${a.wanted_count ? '<span style="color:var(--amber);">' + a.wanted_count + ' wanted</span>' : ''}
+                ${a.downloaded_count ? '<span style="color:var(--emerald);">' + a.downloaded_count + ' have</span>' : ''}
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    let loadMore = hasMore ? `<div style="text-align:center;margin-top:24px;">
+        <button class="btn btn-outline" onclick="discoverFilter.page++;render()">Load More (${filtered.length - showCount} remaining)</button>
+    </div>` : '';
+
+    app.innerHTML = `
+        <div class="stats">
+            <div class="stat-card"><div class="num" style="color:var(--accent)">${stats.authors}</div><div class="label">Authors</div></div>
+            <div class="stat-card"><div class="num" style="color:var(--emerald)">${stats.ebooks}</div><div class="label">eBook Titles</div></div>
+            <div class="stat-card"><div class="num" style="color:var(--sky)">${stats.audiobooks}</div><div class="label">Audiobook Titles</div></div>
+        </div>
+        <div class="section-header">
+            <h2>Discover</h2>
+            <div style="display:flex;gap:8px;">
+                <button class="btn btn-accent btn-sm" onclick="showAddAuthor()">+ Add Author</button>
+                <button class="btn btn-outline btn-sm" onclick="showSeedPicker()">Browse Lists</button>
+                <button class="btn btn-blue btn-sm" onclick="this.classList.add('loading');this.textContent='Checking...';checkAllAudiobooks()" title="Check for audiobooks across all authors">Find Audiobooks</button>
+                <button class="btn btn-danger btn-sm" onclick="resetLibrary()">Reset All</button>
+            </div>
+        </div>
+        <div class="filter-bar">
+            <input type="text" placeholder="Filter authors..." value="${esc(discoverFilter.q)}"
+                style="padding:7px 14px;background:var(--bg3);border:1px solid var(--bg4);border-radius:20px;color:var(--text);font-family:'Jost',sans-serif;font-size:12px;width:280px;"
+                oninput="discoverFilter.q=this.value;discoverFilter.page=1;clearTimeout(searchTimeout);searchTimeout=setTimeout(render,300)">
+            <button class="pill ${discoverFilter.source===''?'active':''}" onclick="discoverFilter.source='';discoverFilter.page=1;render()">All <span style="opacity:0.6">${authors.length}</span></button>
+            ${sourcePills}
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span class="hint">Click an author to explore their catalog &middot; ${filtered.length} authors</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));gap:12px;">
+            ${authorCards || '<div style="grid-column:1/-1" class="empty-state"><h3>No authors yet</h3><p>Add authors or browse curated lists to start building your library.</p><button class="btn btn-accent" onclick="showSeedPicker()">Browse Lists</button></div>'}
+        </div>
+        ${loadMore}
+    `;
+}
+
+async function renderAuthorDetail(app) {
+    const [author, books, similar] = await Promise.all([
+        api('/api/author/' + currentAuthorId),
+        api('/api/author/' + currentAuthorId + '/books'),
+        api('/api/author/' + currentAuthorId + '/similar')
+    ]);
+    let ebooks = books.filter(b => b.book_type !== 'audiobook');
+    let audiobooks = books.filter(b => b.book_type === 'audiobook');
+    let wantedCount = books.filter(b => b.status === 'wanted').length;
+    let haveCount = books.filter(b => b.status === 'downloaded').length;
+
+    // Split by category
+    const ebookNovels = ebooks.filter(b => (b.author_count||1) === 1);
+    const ebookAnthologies = ebooks.filter(b => (b.author_count||1) > 1);
+    const audioNovels = audiobooks.filter(b => (b.author_count||1) === 1);
+    const audioAnthologies = audiobooks.filter(b => (b.author_count||1) > 1);
+
+    // Tab definitions
+    const tabs = [
+        { key: 'ebooks', label: 'eBooks', count: ebookNovels.length },
+        { key: 'audiobooks', label: 'Audiobooks', count: audioNovels.length },
+    ];
+    if (ebookAnthologies.length || audioAnthologies.length) {
+        tabs.push({ key: 'anthologies', label: 'Anthologies', count: ebookAnthologies.length + audioAnthologies.length });
+    }
+
+    // Ensure current tab is valid
+    if (!tabs.find(t => t.key === authorDetailTab)) authorDetailTab = 'ebooks';
+
+    const tabBar = `<div class="tab-bar">${tabs.map(t =>
+        `<button class="tab-btn ${authorDetailTab===t.key?'active':''}" onclick="authorDetailTab='${t.key}';render()">${t.label}<span class="count">${t.count}</span></button>`
+    ).join('')}</div>`;
+
+    // Tab content
+    let tabContent = '';
+    if (authorDetailTab === 'ebooks') {
+        tabContent = renderBooks(ebookNovels, false);
+    } else if (authorDetailTab === 'audiobooks') {
+        tabContent = audioNovels.length > 0
+            ? renderBooks(audioNovels, false)
+            : `<div style="text-align:center;padding:40px;color:var(--text3);">
+                <p style="margin-bottom:14px;">No verified audiobooks found yet.</p>
+                <button class="btn btn-blue btn-sm" onclick="this.classList.add('loading');this.textContent='Checking...';checkAudiobooks(${author.id})">Check iTunes for Audiobooks</button>
+               </div>`;
+    } else if (authorDetailTab === 'anthologies') {
+        const allAnth = [...ebookAnthologies, ...audioAnthologies];
+        tabContent = renderBooks(allAnth, false);
+    }
+
+    app.innerHTML = `
+        <div style="margin-bottom:14px;position:sticky;top:56px;z-index:30;background:var(--bg);padding:8px 0;"><a href="#" onclick="showPage('discover');return false" style="font-size:13px;">&larr; Back to Discover</a></div>
+        <div style="background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);padding:24px;margin-bottom:24px;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+                <div>
+                    <h1 style="font-size:28px;margin-bottom:8px;color:var(--accent);">${esc(author.name)}</h1>
+                    ${author.bio ? `<div style="max-width:600px;">
+                        <p id="author-bio" style="font-size:14px;color:var(--text2);line-height:1.6;max-height:4.8em;overflow:hidden;transition:max-height 0.3s ease;">${esc(author.bio)}</p>
+                        ${author.bio.length > 200 ? '<button onclick="const b=document.getElementById(\'author-bio\');const expanded=b.style.maxHeight!==\'4.8em\';b.style.maxHeight=expanded?\'4.8em\':\'none\';this.textContent=expanded?\'Show more\':\'Show less\'" style="background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:4px 0;font-family:Jost,sans-serif;">Show more</button>' : ''}
+                    </div>` : ''}
+                </div>
+                <div style="display:flex;gap:8px;flex-shrink:0;">
+                    <button class="btn btn-green btn-sm" onclick="this.classList.add('loading');this.textContent='Adding...';wantAll(${author.id},'ebook')">Get All eBooks</button>
+                    <button class="btn btn-blue btn-sm" onclick="this.classList.add('loading');this.textContent='Adding...';wantAll(${author.id},'audiobook')">Get All Audiobooks</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteAuthor(${author.id},'${esc(author.name)}')">Remove Author</button>
+                </div>
+            </div>
+            <div style="display:flex;gap:20px;margin-top:14px;font-size:12px;">
+                <span style="color:var(--emerald);">${ebookNovels.length} eBooks</span>
+                <span style="color:var(--sky);">${audioNovels.length} Audiobooks</span>
+                ${ebookAnthologies.length + audioAnthologies.length ? '<span style="color:var(--text3);">' + (ebookAnthologies.length + audioAnthologies.length) + ' Anthologies</span>' : ''}
+                ${wantedCount ? '<span style="color:var(--amber);">' + wantedCount + ' Wanted</span>' : ''}
+                ${haveCount ? '<span style="color:var(--emerald);">' + haveCount + ' Downloaded</span>' : ''}
+            </div>
+        </div>
+        ${similar && similar.length ? `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap;">
+            <span style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);font-weight:600;">Also try</span>
+            ${similar.slice(0,5).map(s => `<a href="#" onclick="showPage('author-detail',${s.id});return false" style="font-size:13px;color:var(--accent);white-space:nowrap;">${esc(s.name)}</a>`).join('<span style="color:var(--bg4);">&middot;</span>')}
+        </div>
+        ` : ''}
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <span class="hint">Click a book to view details, search, or download</span>
+            ${viewControls()}
+        </div>
+        ${tabBar}
+        ${tabContent}
+    `;
+}
+
+async function openBookDetail(bookId) {
+    const modal = document.getElementById('book-detail-modal');
+    const content = document.getElementById('book-detail-content');
+    modal.style.display = 'flex';
+    content.innerHTML = '<div class="loading" style="padding:40px;">Loading...</div>';
+
+    const book = await api('/api/book/' + bookId);
+    if (book.error) { content.innerHTML = '<div class="loading" style="padding:40px;">Book not found.</div>'; return; }
+
+    const cUrl = coverUrl(book.cover_id, book.id);
+    const statusBadge = {
+        downloaded: '<span class="badge b-green">Downloaded</span>',
+        wanted: '<span class="badge b-yellow">Wanted</span>',
+        downloading: '<span class="badge b-blue">Downloading</span>',
+        missing: '<span class="badge b-gray">Not in Library</span>',
+    }[book.status] || '<span class="badge b-gray">Not in Library</span>';
+    const typeBadge = book.book_type === 'audiobook'
+        ? '<span class="badge b-blue">Audiobook</span>'
+        : '<span class="badge b-green">eBook</span>';
+
+    // Action buttons based on status
+    let actionBtns = '';
+    if (book.status === 'missing') {
+        actionBtns = `<button class="btn btn-accent btn-sm" onclick="this.classList.add('loading');this.textContent='Adding...';wantBookDetail(${book.id})">Add to Wanted</button>`;
+    } else if (book.status === 'wanted') {
+        actionBtns = `
+            <button class="btn btn-outline btn-sm" onclick="this.classList.add('loading');unwantBookDetail(${book.id})">Remove from Wanted</button>
+            <button class="btn btn-accent btn-sm" onclick="manualSearch(${book.id}, '${esc(book.author_name)}', '${esc(book.title)}', '${book.book_type}')">Search Indexers</button>`;
+    } else if (book.status === 'downloading') {
+        actionBtns = `<span class="badge b-blue" style="font-size:11px;padding:6px 12px;">Download in progress</span>`;
+    } else if (book.status === 'downloaded') {
+        actionBtns = `<button class="btn btn-accent btn-sm" onclick="manualSearch(${book.id}, '${esc(book.author_name)}', '${esc(book.title)}', '${book.book_type}')">Search Again</button>`;
+    }
+
+    // Sibling link
+    let siblingHtml = '';
+    if (book.sibling) {
+        const sibType = book.sibling.book_type === 'audiobook' ? 'Audiobook' : 'eBook';
+        const sibStatus = {downloaded:'Have', wanted:'Wanted', downloading:'Active', missing:'Missing'}[book.sibling.status] || 'Missing';
+        siblingHtml = `<div class="sibling-link" onclick="openBookDetail(${book.sibling.id})">Also available as: ${sibType} (${sibStatus})</div>`;
+    }
+
+    // File path
+    let pathHtml = book.path ? `<div class="file-path">File: ${esc(book.path)}</div>` : '';
+
+    // Cover
+    let coverHtml = cUrl
+        ? `<img src="${cUrl}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',textContent:'\\u{1F4D6}'}))">`
+        : '<div class="ph">\u{1F4D6}</div>';
+
+    // Download history
+    let downloadsHtml = '';
+    if (book.downloads && book.downloads.length) {
+        const rows = book.downloads.map(d => {
+            const errRow = d.status === 'failed' && d.error_detail ? `<div style="font-size:10px;color:var(--rose);margin-top:3px;">${esc(d.error_detail)}</div>` : '';
+            const clientTag = d.download_client === 'torrent' ? ' <span class="badge b-gray">T</span>' : d.download_client === 'nzbget' ? ' <span class="badge b-gray">U</span>' : '';
+            const retryBtn = d.status === 'failed' ? `<button class="btn btn-outline btn-sm" style="font-size:10px;padding:2px 6px;margin-left:6px;" onclick="retryDownload(${d.id})">Retry</button>` : '';
+            return `<tr>
+            <td style="font-size:12px;">${esc(d.nzb_name||'')}${clientTag}${errRow}</td>
+            <td><span class="badge ${d.status==='completed'?'b-green':d.status==='failed'?'b-red':'b-blue'}">${d.status}</span>${retryBtn}</td>
+            <td>${fmtSize(d.size_bytes)}</td>
+            <td style="font-size:12px;color:var(--text3)">${d.started_at ? timeSince(d.started_at) : ''}</td>
+        </tr>`;
+        }).join('');
+        const savedPath = book.path ? `<div style="font-size:12px;color:var(--text3);margin-bottom:12px;word-break:break-all;">Saved to: <span style="color:var(--text)">${esc(book.path)}</span></div>` : '';
+        downloadsHtml = `
+            <div class="book-detail-section" style="padding:0 24px;">
+                <h3>Download History</h3>
+                ${savedPath}
+                <table>
+                    <tr><th>Release</th><th>Status</th><th>Size</th><th>Date</th></tr>
+                    ${rows}
+                </table>
+            </div>`;
+    }
+
+    // Other books by author
+    let otherBooksHtml = '';
+    if (book.other_books && book.other_books.length) {
+        const cards = book.other_books.map(b => {
+            const oUrl = coverUrl(b.cover_id, b.id);
+            const oBar = {downloaded:'bar-green',wanted:'bar-yellow',downloading:'bar-blue'}[b.status] || 'bar-gray';
+            const oType = b.book_type === 'audiobook' ? '<span class="badge b-blue tag">Audio</span>' : '<span class="badge b-green tag">eBook</span>';
+            return `<div class="book-card" onclick="openBookDetail(${b.id})" style="cursor:pointer;">
+                <div class="poster">
+                    ${oUrl ? '<img src="'+oUrl+'" loading="lazy" onerror="this.parentElement.textContent=\'\\u{1F4D6}\'">' : '<div class="ph">\u{1F4D6}</div>'}
+                    ${oType}
+                    <div class="bar ${oBar}"></div>
+                </div>
+                <div class="meta">
+                    <div class="title">${esc(b.title)}</div>
+                    ${b.year ? '<div class="year">'+b.year+'</div>' : ''}
+                </div>
+            </div>`;
+        }).join('');
+        otherBooksHtml = `
+            <div class="book-detail-section" style="padding:0 24px 24px;">
+                <h3>More by ${esc(book.author_name)}</h3>
+                <div class="other-books-grid">${cards}</div>
+            </div>`;
+    }
+
+    content.innerHTML = `
+        <div class="book-detail-header" style="border:none;border-radius:0;margin-bottom:0;">
+            <div class="book-detail-cover">${coverHtml}</div>
+            <div class="book-detail-info">
+                <h1>${esc(book.title)}</h1>
+                <div class="author-link" onclick="document.getElementById('book-detail-modal').style.display='none';showPage('author-detail',${book.author_id})">by ${esc(book.author_name)}</div>
+                <div class="meta-line">
+                    ${book.year ? book.year + ' &middot; ' : ''}${typeBadge} &middot; ${statusBadge}
+                </div>
+                <div class="actions">
+                    ${actionBtns}
+                    <button class="btn btn-danger btn-sm" onclick="deleteBook(${book.id},${book.author_id},'${esc(book.title)}')">Delete</button>
+                </div>
+                ${siblingHtml}
+                ${pathHtml}
+                ${book.status === 'wanted' && book.last_searched ? (() => {
+                    const reason = book.last_grab_reason || '';
+                    const reasonColor = reason === 'grabbed' ? 'var(--emerald)' :
+                        reason.includes('no results') ? 'var(--rose)' :
+                        reason.includes('rejected') ? 'var(--amber)' :
+                        reason.includes('below minimum') ? 'var(--amber)' : 'var(--text3)';
+                    return `<div style="font-size:12px;margin-top:10px;padding:10px 14px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--bg3);">
+                        <div style="color:var(--text3);margin-bottom:4px;">Last searched: ${timeSince(book.last_searched)} &middot; ${book.last_result_count||0} results found</div>
+                        ${reason && reason !== 'grabbed' ? `<div style="color:${reasonColor};font-weight:500;">${esc(reason)}</div>` : ''}
+                    </div>`;
+                })() : ''}
+            </div>
+        </div>
+        ${downloadsHtml}
+        ${otherBooksHtml}
+    `;
+}
+
+async function wantBookDetail(id) {
+    await api('/api/book/'+id+'/want','POST');
+    toast('Marked as wanted');
+    openBookDetail(id);
+    render();
+}
+async function unwantBookDetail(id) {
+    await api('/api/book/'+id+'/unwant','POST');
+    toast('Removed from wanted');
+    openBookDetail(id);
+    render();
+}
+async function deleteBook(id, authorId, title) {
+    if (!confirm('Delete "' + title + '" from your library?')) return;
+    await api('/api/book/' + id + '/delete', 'POST');
+    document.getElementById('book-detail-modal').style.display = 'none';
+    toast(title + ' deleted');
+    render();
+}
+
+async function renderActivity(app) {
+    const [activity, health] = await Promise.all([api('/api/activity'), api('/api/indexer/health')]);
+    let rows = activity.map(d => {
+        const typeBadge = d.book_type === 'audiobook' ? '<span class="badge b-blue" style="margin-left:6px;">Audio</span>' : '<span class="badge b-green" style="margin-left:6px;">eBook</span>';
+        const clientBadge = d.download_client === 'torrent'
+            ? '<span class="badge b-gray" style="margin-left:4px;">Torrent</span>'
+            : d.download_client === 'nzbget' ? '<span class="badge b-gray" style="margin-left:4px;">Usenet</span>' : '';
+        let statusBadge = `<span class="badge ${d.status==='completed'?'b-green':d.status==='failed'?'b-red':'b-blue'}">${d.status}</span>`;
+        let errorRow = '';
+        if (d.status === 'failed' && d.error_detail) {
+            errorRow = `<div style="font-size:11px;color:var(--rose);margin-top:4px;line-height:1.4;">${esc(d.error_detail)}</div>`;
+        }
+        if (d.status === 'downloading') {
+            errorRow = `<div style="font-size:11px;color:var(--sky);margin-top:2px;">Downloading via ${d.download_client === 'torrent' ? 'torrent client' : 'NZBGet'}...</div>`;
+        }
+        const retryBtn = d.status === 'failed' ? `<button class="btn btn-outline btn-sm" style="margin-left:8px;font-size:10px;padding:3px 8px;" onclick="retryDownload(${d.id})">Retry</button>` : '';
+        return `<tr>
+            <td>
+                <div style="font-weight:600;">${esc(d.book_title)}${typeBadge}${clientBadge}</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:2px;" title="${esc(d.nzb_name||'')}">${esc(d.nzb_name ? (d.nzb_name.length > 60 ? d.nzb_name.substring(0,57)+'...' : d.nzb_name) : '')}</div>
+                ${errorRow}
+            </td>
+            <td style="color:var(--text3)">${esc(d.author_name)}</td>
+            <td>${statusBadge}${retryBtn}</td>
+            <td>${fmtSize(d.size_bytes)}</td>
+            <td style="font-size:12px;color:var(--text3)">${d.started_at ? timeSince(d.started_at) : ''}</td>
+        </tr>`;
+    }).join('');
+
+    // Indexer health section
+    let indexerRows = '';
+    if (health.indexers && health.indexers.length) {
+        indexerRows = health.indexers.map(ix => {
+            const failRate = parseFloat(ix.failure_rate || 0);
+            const healthBadge = failRate > 50 ? '<span class="badge b-red">Unhealthy</span>'
+                : failRate > 20 ? '<span class="badge b-yellow">Degraded</span>'
+                : '<span class="badge b-green">Healthy</span>';
+            return `<tr>
+                <td style="font-weight:600;">Indexer ${esc(ix.indexer_id)}</td>
+                <td>${healthBadge}</td>
+                <td>${ix.total_queries} queries</td>
+                <td><span style="color:var(--emerald)">${ix.successes} ok</span> / <span style="color:var(--rose)">${ix.failures} fail</span></td>
+                <td>${ix.avg_results} avg results</td>
+                <td style="font-size:12px;color:var(--text3)">${ix.last_query ? timeSince(ix.last_query) : 'never'}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    const lastSearchInfo = health.last_search
+        ? `Last background search: ${timeSince(health.last_search.searched_at)} &middot; ${health.last_search.results} books checked &middot; ${health.last_search.grabbed} grabbed`
+        : 'No background searches yet';
+
+    app.innerHTML = `
+        <div class="section-header"><h2>Activity</h2></div>
+        <table>
+            <tr><th>Title</th><th>Author</th><th>Status</th><th>Size</th><th>When</th></tr>
+            ${rows || '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:40px">No activity yet. Add books to your library and they\'ll be searched automatically.</td></tr>'}
+        </table>
+
+        <div class="section-header" style="margin-top:32px;"><h2>Indexer Health</h2></div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">
+            ${lastSearchInfo} &middot; Search interval: every ${health.search_interval_min} min
+        </div>
+        ${indexerRows ? `<table>
+            <tr><th>Indexer</th><th>Status</th><th>Queries (7d)</th><th>Success / Fail</th><th>Avg Results</th><th>Last Query</th></tr>
+            ${indexerRows}
+        </table>` : '<div style="color:var(--text3);font-size:13px;padding:20px 0;">No indexer stats yet. Stats will appear after your first search.</div>'}
+        ${health.recent_errors && health.recent_errors.length ? `
+        <div style="margin-top:16px;">
+            <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600;">Recent Errors (24h)</div>
+            ${health.recent_errors.map(e => `<div style="font-size:12px;color:var(--rose);padding:4px 0;">Indexer ${esc(e.indexer_id)}: ${esc(e.error_msg)} <span style="color:var(--text3);margin-left:6px;">${timeSince(e.queried_at)}</span></div>`).join('')}
+        </div>` : ''}
+    `;
+}
+
+async function renderSettings(app) {
+    const settings = await api('/api/settings');
+    const languages = [
+        {val:'english',label:'English'},{val:'french',label:'French'},{val:'german',label:'German'},
+        {val:'spanish',label:'Spanish'},{val:'italian',label:'Italian'},{val:'portuguese',label:'Portuguese'},
+        {val:'dutch',label:'Dutch'},{val:'swedish',label:'Swedish'},{val:'russian',label:'Russian'},
+        {val:'japanese',label:'Japanese'},{val:'chinese',label:'Chinese'},{val:'korean',label:'Korean'},
+    ];
+    const selectedLangs = (settings.language || 'english').split(',');
+    const isAny = settings.language === 'any';
+    let langCbs = languages.map(l =>
+        `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;">
+            <input type="checkbox" class="lang-cb" value="${l.val}" ${isAny || selectedLangs.includes(l.val) ? 'checked' : ''} style="width:14px;height:14px;accent-color:var(--accent);">
+            <span style="font-size:13px">${l.label}</span>
+        </label>`
+    ).join('');
+
+    const I = 'width:100%;padding:10px 14px;background:var(--bg3);border:1px solid var(--bg4);border-radius:var(--radius);color:var(--text);font-family:Jost,Futura,sans-serif;font-size:13px;';
+    const L = 'display:block;font-size:12px;color:var(--text);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600;';
+    const H = 'font-size:11px;color:var(--text3);margin-top:6px;';
+
+    // Torrent client pills
+    const tc = settings.torrent_client || '';
+    const tcPills = [{val:'',label:'None'},{val:'qbittorrent',label:'qBittorrent'},{val:'transmission',label:'Transmission'}].map(o =>
+        `<button class="pill ${tc===o.val?'active':''}" onclick="setTorrentClient('${o.val}')" style="padding:7px 16px;">${o.label}</button>`
+    ).join('');
+
+    app.innerHTML = `
+        <div class="section-header"><h2>Settings</h2></div>
+
+        <!-- Indexer Settings (Prowlarr) -->
+        <div class="settings-section">
+            <h3><span class="section-icon">&#9881;</span> Indexers (Prowlarr)</h3>
+            <div style="${H}margin-bottom:16px;margin-top:-8px;">Prowlarr manages your usenet and torrent indexers. All search requests go through Prowlarr.</div>
+            <div class="settings-field">
+                <label style="${L}">Prowlarr URL</label>
+                <input type="text" id="set-prowlarr-url" value="${esc(settings.prowlarr_url||'')}" placeholder="http://localhost:9696" style="${I}">
+            </div>
+            <div class="settings-field">
+                <label style="${L}">API Key</label>
+                <input type="text" id="set-prowlarr-key" value="${esc(settings.prowlarr_api_key||'')}" placeholder="Your Prowlarr API key" style="${I}">
+            </div>
+            <div class="settings-field">
+                <label style="${L}">Usenet Indexer IDs</label>
+                <input type="text" id="set-prowlarr-ids" value="${esc(settings.prowlarr_indexer_ids||'')}" placeholder="1,2,3" style="${I}">
+                <div style="${H}">Comma-separated Prowlarr indexer IDs for Newznab (usenet) indexers.</div>
+            </div>
+            <div class="settings-field">
+                <label style="${L}">Torrent Indexer IDs</label>
+                <input type="text" id="set-torrent-ids" value="${esc(settings.torrent_indexer_ids||'')}" placeholder="4,5" style="${I}">
+                <div style="${H}">Comma-separated Prowlarr indexer IDs for Torznab (torrent) indexers. Leave blank to disable torrent search.</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="test-btn" onclick="testConnection('prowlarr')">Test Connection</button>
+                <div id="test-prowlarr" class="test-result"></div>
+            </div>
+        </div>
+
+        <!-- Usenet Download Client (NZBGet) -->
+        <div class="settings-section">
+            <h3><span class="section-icon">&#8615;</span> Usenet (NZBGet)</h3>
+            <div style="${H}margin-bottom:16px;margin-top:-8px;">NZBGet downloads NZB files from usenet indexers.</div>
+            <div class="settings-field">
+                <label style="${L}">NZBGet URL</label>
+                <input type="text" id="set-nzbget-url" value="${esc(settings.nzbget_url||'')}" placeholder="http://localhost:6789/jsonrpc" style="${I}">
+            </div>
+            <div style="display:flex;gap:16px;" class="settings-field">
+                <div style="flex:1"><label style="${L}">Username</label><input type="text" id="set-nzbget-user" value="${esc(settings.nzbget_user||'')}" placeholder="nzbget" style="${I}"></div>
+                <div style="flex:1"><label style="${L}">Password</label><input type="password" id="set-nzbget-pass" value="${esc(settings.nzbget_pass||'')}" placeholder="password" style="${I}"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="test-btn" onclick="testConnection('nzbget')">Test Connection</button>
+                <div id="test-nzbget" class="test-result"></div>
+            </div>
+        </div>
+
+        <!-- Torrent Download Client -->
+        <div class="settings-section">
+            <h3><span class="section-icon">&#8635;</span> Torrent Client</h3>
+            <div style="${H}margin-bottom:16px;margin-top:-8px;">Optional. Downloads torrents from Torznab indexers. Choose qBittorrent or Transmission.</div>
+            <div class="settings-field">
+                <label style="${L}">Client</label>
+                <div style="display:flex;gap:8px;" id="torrent-client-group">${tcPills}</div>
+                <input type="hidden" id="set-torrent-client" value="${esc(tc)}">
+            </div>
+            <div id="torrent-fields" style="${tc?'':'display:none;'}">
+                <div class="settings-field">
+                    <label style="${L}">Host URL</label>
+                    <input type="text" id="set-torrent-host" value="${esc(settings.torrent_host||'')}" placeholder="http://localhost:8080" style="${I}">
+                </div>
+                <div style="display:flex;gap:16px;" class="settings-field">
+                    <div style="flex:1"><label style="${L}">Username</label><input type="text" id="set-torrent-user" value="${esc(settings.torrent_user||'')}" style="${I}"></div>
+                    <div style="flex:1"><label style="${L}">Password</label><input type="password" id="set-torrent-pass" value="${esc(settings.torrent_pass||'')}" style="${I}"></div>
+                </div>
+                <div style="display:flex;gap:16px;" class="settings-field">
+                    <div style="flex:1"><label style="${L}">Category</label><input type="text" id="set-torrent-cat" value="${esc(settings.torrent_category||'bookarr')}" style="${I}"></div>
+                    <div style="flex:1"><label style="${L}">Seed Ratio Limit</label><input type="text" id="set-seed-ratio" value="${esc(settings.seed_ratio_limit||'1.0')}" style="${I}"></div>
+                </div>
+                <div class="settings-field">
+                    <label style="${L}">Min Seeders</label>
+                    <input type="number" id="set-min-seeders" value="${settings.min_seeders||1}" style="${I}">
+                    <div style="${H}">Reject torrent results with fewer seeders than this.</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <button class="test-btn" onclick="testConnection('torrent')">Test Connection</button>
+                    <div id="test-torrent" class="test-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notifications -->
+        <div class="settings-section">
+            <h3><span class="section-icon">&#128276;</span> Notifications (Pushover)</h3>
+            <div style="${H}margin-bottom:16px;margin-top:-8px;">Optional. Get push notifications when books are grabbed or downloaded.</div>
+            <div style="display:flex;gap:16px;" class="settings-field">
+                <div style="flex:1"><label style="${L}">App Token</label><input type="password" id="set-pushover-token" value="${esc(settings.pushover_token||'')}" placeholder="Pushover app token" style="${I}"></div>
+                <div style="flex:1"><label style="${L}">User Key</label><input type="password" id="set-pushover-user" value="${esc(settings.pushover_user||'')}" placeholder="Pushover user key" style="${I}"></div>
+            </div>
+        </div>
+
+        <!-- Library Settings -->
+        <div class="settings-section">
+            <h3><span class="section-icon">&#128218;</span> Library</h3>
+            <div class="settings-field">
+                <label style="${L}">eBook Save Path</label>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="set-ebook-path" value="${esc(settings.ebook_path||'')}" placeholder="/path/to/ebooks" style="${I}flex:1;">
+                    <button class="btn" onclick="openFolderBrowser('ebook_path')" style="background:var(--bg3);color:var(--text);border:1px solid var(--bg4);white-space:nowrap;padding:10px 14px;font-size:13px;">Browse</button>
+                </div>
+                <div style="${H}">Organized into Author/Title/ebook/ subfolders.</div>
+            </div>
+            <div class="settings-field">
+                <label style="${L}">Audiobook Save Path</label>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="set-audiobook-path" value="${esc(settings.audiobook_path||'')}" placeholder="/path/to/audiobooks" style="${I}flex:1;">
+                    <button class="btn" onclick="openFolderBrowser('audiobook_path')" style="background:var(--bg3);color:var(--text);border:1px solid var(--bg4);white-space:nowrap;padding:10px 14px;font-size:13px;">Browse</button>
+                </div>
+                <div style="${H}">Organized into Author/Title/audiobook/ subfolders.</div>
+            </div>
+            <div class="settings-field">
+                <label style="${L}">Preferred Languages</label>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 20px;background:var(--bg3);border:1px solid var(--bg4);border-radius:var(--radius);padding:14px;">
+                    ${langCbs}
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;grid-column:1/-1;border-top:1px solid var(--bg4);margin-top:8px;padding-top:10px;">
+                        <input type="checkbox" id="lang-any" ${isAny?'checked':''} onchange="document.querySelectorAll('.lang-cb').forEach(c=>c.checked=this.checked)" style="width:14px;height:14px;accent-color:var(--accent);">
+                        <span style="font-size:13px;font-weight:600;">All Languages</span>
+                    </label>
+                </div>
+                <div style="${H}">Controls which titles are imported and which releases are accepted.</div>
+            </div>
+            <div class="settings-field">
+                <label style="${L}">When Wanting a Book, Download</label>
+                <div style="display:flex;gap:8px;" id="want-format-group">
+                    ${wantFormatPills(settings.want_format||'both')}
+                </div>
+                <input type="hidden" id="set-want-format" value="${settings.want_format||'both'}">
+                <div style="${H}">Want both eBook and audiobook, or just one format.</div>
+            </div>
+            <div class="settings-field">
+                <label style="${L}">Preferred eBook Format</label>
+                <div style="display:flex;gap:8px;" id="pref-format-group">
+                    ${prefFormatPills(settings.preferred_ebook_format||'epub')}
+                </div>
+                <input type="hidden" id="set-pref-format" value="${settings.preferred_ebook_format||'epub'}">
+                <div style="${H}">Matching results get a score boost during search.</div>
+            </div>
+        </div>
+
+        <!-- Search Settings -->
+        <div class="settings-section">
+            <h3><span class="section-icon">&#128269;</span> Search</h3>
+            <div class="settings-field">
+                <label style="${L}">Search Interval (seconds)</label>
+                <input type="number" id="set-interval" value="${settings.search_interval||900}" style="${I}">
+                <div style="${H}">How often to search for wanted books. Default 900 (15 minutes).</div>
+            </div>
+            <div class="settings-field">
+                <label style="${L}">Min Match Score</label>
+                <input type="number" id="set-minscore" value="${settings.min_score||30}" style="${I}">
+                <div style="${H}">Results below this score are rejected. Higher = stricter matching.</div>
+            </div>
+            <div style="display:flex;gap:16px;" class="settings-field">
+                <div style="flex:1"><label style="${L}">Max eBook Size (MB)</label><input type="number" id="set-maxebook" value="${settings.max_size_mb_ebook||200}" style="${I}"></div>
+                <div style="flex:1"><label style="${L}">Max Audiobook Size (MB)</label><input type="number" id="set-maxaudio" value="${settings.max_size_mb_audiobook||5000}" style="${I}"></div>
+            </div>
+            <div class="settings-field">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="checkbox" id="set-autosearch" ${settings.auto_search==='1'?'checked':''} style="width:14px;height:14px;accent-color:var(--accent);">
+                    <span style="font-size:13px;">Enable automatic background searching</span>
+                </label>
+            </div>
+        </div>
+
+        <div style="max-width:640px;">
+            <button class="btn btn-accent" onclick="saveSettings()" style="margin-right:8px;">Save All Settings</button>
+            <span id="settings-saved" style="color:var(--emerald);margin-left:4px;display:none;font-size:13px;">Saved!</span>
+        </div>
+
+        <!-- Source Folders -->
+        <div class="settings-section" style="margin-top:20px;">
+            <h3><span class="section-icon">&#128193;</span> Source Folders</h3>
+            <div style="${H}margin-bottom:14px;margin-top:-8px;">
+                Bookarr scans these folders for book files and organizes them into your library. Save paths are included automatically.
+            </div>
+            <div id="source-folders-list"><div class="loading" style="padding:10px;">Loading...</div></div>
+            <div style="display:flex;gap:8px;margin-top:14px;">
+                <button class="btn btn-outline btn-sm" onclick="openFolderBrowser('source_folder')">+ Add Folder</button>
+                <button class="btn btn-blue btn-sm" id="scan-now-btn" onclick="this.classList.add('loading');this.textContent='Scanning...';scanSourceFolders().then(()=>{this.classList.remove('loading');this.textContent='Scan Now';})">Scan Now</button>
+            </div>
+        </div>
+    `;
+    loadSourceFolders();
+}
+
+// --- Want Format Pills ---
+function wantFormatPills(current) {
+    const opts = [{val:'both',label:'Both Formats'},{val:'ebook',label:'eBook Only'},{val:'audiobook',label:'Audiobook Only'}];
+    return opts.map(o => {
+        const active = current === o.val;
+        return `<button class="pill ${active?'active':''}" onclick="setWantFormat('${o.val}')" style="padding:7px 16px;">${o.label}</button>`;
+    }).join('');
+}
+function setWantFormat(val) {
+    document.getElementById('set-want-format').value = val;
+    document.getElementById('want-format-group').innerHTML = wantFormatPills(val);
+}
+
+// --- Preferred Format Pills ---
+function prefFormatPills(current) {
+    const opts = [{val:'epub',label:'EPUB'},{val:'mobi',label:'MOBI'},{val:'pdf',label:'PDF'},{val:'any',label:'Any'}];
+    return opts.map(o => {
+        const active = current === o.val;
+        return `<button class="pill ${active?'active':''}" onclick="setPrefFormat('${o.val}')" style="padding:7px 16px;">${o.label}</button>`;
+    }).join('');
+}
+function setPrefFormat(val) {
+    document.getElementById('set-pref-format').value = val;
+    document.getElementById('pref-format-group').innerHTML = prefFormatPills(val);
+}
+
+// --- Torrent Client ---
+function setTorrentClient(val) {
+    document.getElementById('set-torrent-client').value = val;
+    const pills = [{val:'',label:'None'},{val:'qbittorrent',label:'qBittorrent'},{val:'transmission',label:'Transmission'}];
+    document.getElementById('torrent-client-group').innerHTML = pills.map(o =>
+        `<button class="pill ${val===o.val?'active':''}" onclick="setTorrentClient('${o.val}')" style="padding:7px 16px;">${o.label}</button>`
+    ).join('');
+    const fields = document.getElementById('torrent-fields');
+    if (fields) fields.style.display = val ? '' : 'none';
+}
+
+// --- Test Connections ---
+async function testConnection(type) {
+    const el = document.getElementById('test-' + type);
+    if (!el) return;
+    el.className = 'test-result'; el.style.display = 'block';
+    el.textContent = 'Testing...'; el.style.color = 'var(--text3)'; el.style.background = 'var(--bg3)';
+    // Save current settings first so the test uses them
+    await saveSettingsQuiet();
+    const r = await api('/api/test/' + type);
+    el.className = 'test-result ' + (r.success ? 'success' : 'fail');
+    el.textContent = r.message || (r.success ? 'Connected!' : 'Failed');
+}
+async function saveSettingsQuiet() {
+    const isAny = document.getElementById('lang-any')?.checked;
+    const langCbs = [...document.querySelectorAll('.lang-cb:checked')].map(c => c.value);
+    const gv = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+    const settings = {
+        prowlarr_url: gv('set-prowlarr-url'), prowlarr_api_key: gv('set-prowlarr-key'),
+        prowlarr_indexer_ids: gv('set-prowlarr-ids'), torrent_indexer_ids: gv('set-torrent-ids'),
+        nzbget_url: gv('set-nzbget-url'), nzbget_user: gv('set-nzbget-user'), nzbget_pass: gv('set-nzbget-pass'),
+        torrent_client: gv('set-torrent-client'), torrent_host: gv('set-torrent-host'),
+        torrent_user: gv('set-torrent-user'), torrent_pass: gv('set-torrent-pass'),
+        torrent_category: gv('set-torrent-cat'), seed_ratio_limit: gv('set-seed-ratio'), min_seeders: gv('set-min-seeders'),
+        pushover_token: gv('set-pushover-token'), pushover_user: gv('set-pushover-user'),
+    };
+    await api('/api/settings', 'POST', settings);
+}
+
+// --- Source Folders ---
+async function loadSourceFolders() {
+    const el = document.getElementById('source-folders-list');
+    if (!el) return;
+    const folders = await api('/api/source-folders');
+    let html = '';
+    for (const f of folders) {
+        const isAuto = f.type === 'auto';
+        html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--bg3);border-radius:var(--radius);margin-bottom:6px;background:var(--bg);">
+            <span style="font-size:16px;opacity:.5;">&#128193;</span>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;word-break:break-all;">${esc(f.path)}</div>
+                ${isAuto ? '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">'+esc(f.label)+' (automatic)</div>' : ''}
+            </div>
+            ${isAuto ? '' : '<button class="btn btn-danger btn-sm" onclick="removeSourceFolder(\''+esc(f.path).replace(/'/g,"\\'")+'\')">Remove</button>'}
+        </div>`;
+    }
+    el.innerHTML = html || '<div style="color:var(--text3);font-size:13px;padding:10px;">No source folders configured.</div>';
+}
+async function removeSourceFolder(path) {
+    await api('/api/source-folders/delete', 'POST', {path});
+    toast('Folder removed');
+    loadSourceFolders();
+}
+async function addSourceFolder(path) {
+    const result = await api('/api/source-folders', 'POST', {path});
+    if (result.error) { toast('Error: ' + result.error); return; }
+    toast('Source folder added: ' + path);
+    loadSourceFolders();
+}
+async function scanSourceFolders() {
+    const result = await api('/api/source-folders/scan', 'POST');
+    toast('Scan started — checking all source folders for book files');
+}
+
+// --- Folder Browser ---
+let folderTarget = null;
+let folderCurrentPath = '/';
+
+async function openFolderBrowser(target) {
+    folderTarget = target;
+    let startPath = '/';
+    if (target === 'ebook_path') {
+        startPath = document.getElementById('set-ebook-path').value.trim() || '/';
+    } else if (target === 'audiobook_path') {
+        startPath = document.getElementById('set-audiobook-path').value.trim() || '/';
+    }
+    document.getElementById('folder-modal').style.display = 'flex';
+    await browseTo(startPath);
+}
+
+function closeFolderBrowser() {
+    document.getElementById('folder-modal').style.display = 'none';
+}
+
+async function browseTo(path) {
+    const data = await api(`/api/browse?path=${encodeURIComponent(path)}`);
+    folderCurrentPath = data.path;
+
+    const parts = data.path.split('/').filter(Boolean);
+    let crumb = `<span style="cursor:pointer;color:var(--accent);font-weight:600;" onclick="browseTo('/')">/</span>`;
+    let accumulated = '';
+    for (const p of parts) {
+        accumulated += '/' + p;
+        const escapedPath = accumulated.replace(/'/g, "\\'");
+        crumb += `<span style="color:var(--text3);margin:0 2px;">/</span><span style="cursor:pointer;color:var(--accent);" onclick="browseTo('${escapedPath}')">${p}</span>`;
+    }
+    document.getElementById('folder-breadcrumb').innerHTML = crumb;
+
+    const list = document.getElementById('folder-list');
+    let html = '';
+    if (data.parent !== null && data.parent !== undefined) {
+        html += `<div onclick="browseTo('${data.parent.replace(/'/g, "\\'")}')" style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--bg3);font-size:13px;color:var(--text3);" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background='transparent'">
+            <span style="font-size:16px;opacity:.6;">&#8593;</span> ..
+        </div>`;
+    }
+    if (data.dirs.length === 0) {
+        html += `<div style="padding:20px 14px;text-align:center;font-size:12px;color:var(--text3);">No subfolders</div>`;
+    }
+    for (const d of data.dirs) {
+        const full = (data.path === '/' ? '' : data.path) + '/' + d;
+        const escapedFull = full.replace(/'/g, "\\'");
+        html += `<div onclick="browseTo('${escapedFull}')" style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--bg3);font-size:13px;" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background='transparent'">
+            <span style="font-size:16px;opacity:.6;">&#128193;</span> ${d}
+        </div>`;
+    }
+    list.innerHTML = html;
+}
+
+function selectFolder() {
+    if (folderTarget === 'source_folder') {
+        addSourceFolder(folderCurrentPath);
+    } else {
+        const input = document.getElementById(folderTarget === 'ebook_path' ? 'set-ebook-path' : 'set-audiobook-path');
+        input.value = folderCurrentPath;
+    }
+    closeFolderBrowser();
+}
+
+async function saveSettings() {
+    const isAny = document.getElementById('lang-any').checked;
+    const langCbs = [...document.querySelectorAll('.lang-cb:checked')].map(c => c.value);
+    const gv = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+    const settings = {
+        // Prowlarr
+        prowlarr_url: gv('set-prowlarr-url'),
+        prowlarr_api_key: gv('set-prowlarr-key'),
+        prowlarr_indexer_ids: gv('set-prowlarr-ids'),
+        torrent_indexer_ids: gv('set-torrent-ids'),
+        // NZBGet
+        nzbget_url: gv('set-nzbget-url'),
+        nzbget_user: gv('set-nzbget-user'),
+        nzbget_pass: gv('set-nzbget-pass'),
+        // Torrent
+        torrent_client: gv('set-torrent-client'),
+        torrent_host: gv('set-torrent-host'),
+        torrent_user: gv('set-torrent-user'),
+        torrent_pass: gv('set-torrent-pass'),
+        torrent_category: gv('set-torrent-cat'),
+        seed_ratio_limit: gv('set-seed-ratio'),
+        min_seeders: gv('set-min-seeders'),
+        // Library
+        language: isAny ? 'any' : (langCbs.length ? langCbs.join(',') : 'english'),
+        ebook_path: gv('set-ebook-path'),
+        audiobook_path: gv('set-audiobook-path'),
+        want_format: gv('set-want-format'),
+        preferred_ebook_format: gv('set-pref-format'),
+        // Notifications
+        pushover_token: gv('set-pushover-token'),
+        pushover_user: gv('set-pushover-user'),
+        // Search
+        search_interval: gv('set-interval'),
+        min_score: gv('set-minscore'),
+        max_size_mb_ebook: gv('set-maxebook'),
+        max_size_mb_audiobook: gv('set-maxaudio'),
+        auto_search: document.getElementById('set-autosearch').checked ? '1' : '0',
+    };
+    await api('/api/settings', 'POST', settings);
+    toast('Settings saved');
+    const el = document.getElementById('settings-saved');
+    if (el) { el.style.display = 'inline'; setTimeout(() => el.style.display = 'none', 2000); }
+}
+
+// --- Add Book ---
+function showAddBook(query) {
+    document.getElementById('add-book-modal').style.display = 'flex';
+    const input = document.getElementById('book-search-input');
+    input.value = query || '';
+    document.getElementById('book-search-results').innerHTML = '';
+    input.focus();
+    if (query) debounceBookSearch(query);
+}
+
+function debounceBookSearch(q) {
+    clearTimeout(searchTimeout);
+    if (q.length < 2) return;
+    searchTimeout = setTimeout(() => searchBooksOL(q), 400);
+}
+
+async function searchBooksOL(q) {
+    const el = document.getElementById('book-search-results');
+    el.innerHTML = '<div class="loading">Searching Open Library...</div>';
+    const results = await api('/api/search/book?q=' + encodeURIComponent(q));
+    if (!results.length) { el.innerHTML = '<div style="color:var(--text3);padding:14px;font-size:13px;">No results found.</div>'; return; }
+    el.innerHTML = results.map(r => {
+        const cUrl = r.cover_id ? '/api/cover/' + r.cover_id + '?size=S' : '';
+        return `<div class="sr" onclick="addBookFromSearch(${JSON.stringify(r).replace(/"/g,'&quot;')})">
+            <div class="sr-cover">${cUrl ? '<img src="'+cUrl+'" onerror="this.parentElement.textContent=\'\\u{1F4D6}\'">' : '\u{1F4D6}'}</div>
+            <div class="sr-info">
+                <div class="sr-title">${esc(r.title)}</div>
+                <div class="sr-detail">${esc(r.author_name)} ${r.year ? '('+r.year+')' : ''} &middot; ${r.edition_count} editions</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function addBookFromSearch(book) {
+    document.getElementById('book-search-results').innerHTML = '<div class="loading">Adding...</div>';
+    const result = await api('/api/book/add', 'POST', {
+        title: book.title,
+        author_name: book.author_name,
+        author_key: book.author_key,
+        ol_key: book.key,
+        year: book.year,
+        cover_id: book.cover_id,
+        book_type: 'both',
+    });
+    document.getElementById('add-book-modal').style.display = 'none';
+    toast(book.title + ' added as wanted');
+    render();
+}
+
+// --- Add Author ---
+function showAddAuthor() {
+    document.getElementById('add-author-modal').style.display = 'flex';
+    document.getElementById('author-search').value = '';
+    document.getElementById('author-results').innerHTML = '';
+    document.getElementById('author-search').focus();
+}
+
+function debounceAuthorSearch(q) {
+    clearTimeout(searchTimeout);
+    if (q.length < 2) return;
+    searchTimeout = setTimeout(() => searchAuthorOL(q), 500);
+}
+
+async function searchAuthorOL(q) {
+    const el = document.getElementById('author-results');
+    el.innerHTML = '<div class="loading">Searching...</div>';
+    const results = await api('/api/search/author?q=' + encodeURIComponent(q));
+    if (!results.length) { el.innerHTML = '<div style="color:var(--text3);padding:14px;font-size:13px;">No results found.</div>'; return; }
+    el.innerHTML = results.map(r => `
+        <div class="sr" onclick="addAuthorOL('${r.key}','${esc(r.name)}')">
+            <div class="sr-info">
+                <div class="sr-title">${esc(r.name)}</div>
+                <div class="sr-detail">${r.work_count} works &middot; ${r.top_work||''} &middot; ${r.birth_date||''}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function addAuthorOL(olKey, name) {
+    document.getElementById('author-results').innerHTML = '<div class="loading">Adding ' + name + '...</div>';
+    const result = await api('/api/author/add-ol', 'POST', {ol_key: olKey, name: name});
+    document.getElementById('add-author-modal').style.display = 'none';
+    toast(result.status === 'exists' ? name + ' already exists' : name + ' added with ' + (result.books||0) + ' books');
+    render();
+}
+
+// --- Seed Picker ---
+async function showSeedPicker() {
+    document.getElementById('seed-modal').style.display = 'flex';
+    const el = document.getElementById('seed-categories');
+    el.innerHTML = '<div class="loading">Loading categories...</div>';
+
+    const categories = await api('/api/seed/categories');
+
+    let html = `
+        <div class="seed-card" style="border-color:var(--sky);margin-bottom:14px;">
+            <div class="seed-name" style="color:var(--sky);">Trending This Week</div>
+            <div class="seed-desc">Currently popular books from Open Library. Authors are extracted from the trending list and added with their works.</div>
+            <div class="seed-meta">
+                <span style="font-size:11px;color:var(--text3);">Live from Open Library</span>
+                <button class="btn btn-blue btn-sm" onclick="seedTrending()">Add Trending</button>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:12px;">
+    `;
+
+    for (const cat of categories) {
+        html += `
+            <div class="seed-card">
+                <div class="seed-name">${esc(cat.name)}</div>
+                <div class="seed-desc">${esc(cat.description)}</div>
+                <div class="seed-meta">
+                    <span style="font-size:11px;color:var(--text3);">${cat.author_count} authors</span>
+                    <button class="btn btn-accent btn-sm" onclick="seedCategory('${esc(cat.key)}', '${esc(cat.name)}', ${cat.author_count})">Add</button>
+                </div>
+            </div>
+        `;
+    }
+    html += '</div>';
+    el.innerHTML = html;
+}
+
+async function seedCategory(key, name, count) {
+    toast(`Adding ${count} ${name} authors... this may take a few minutes.`);
+    document.getElementById('seed-modal').style.display = 'none';
+    api('/api/seed', 'POST', {category: key});
+    // Poll for progress every 5 seconds for up to 5 minutes
+    let polls = 0;
+    const poller = setInterval(async () => {
+        polls++;
+        await render();
+        if (polls >= 60) clearInterval(poller);
+    }, 5000);
+}
+
+async function seedTrending() {
+    toast('Fetching trending authors from Open Library... this may take a few minutes.');
+    document.getElementById('seed-modal').style.display = 'none';
+    api('/api/seed/trending', 'POST');
+    // Poll for progress every 5 seconds for up to 5 minutes
+    let polls = 0;
+    const poller = setInterval(async () => {
+        polls++;
+        await render();
+        if (polls >= 60) clearInterval(poller);
+    }, 5000);
+}
+
+// --- Actions ---
+async function toggleAuthor(id) {
+    const result = await api('/api/author/'+id+'/toggle','POST');
+    toast(result.monitored ? 'Now monitoring author' : 'Author unmonitored');
+    render();
+}
+async function deleteAuthor(id, name) { if (!confirm('Delete '+name+' and all their books?')) return; await api('/api/author/'+id+'/delete','POST'); toast(name+' deleted'); showPage('discover'); }
+async function wantBook(id) { await api('/api/book/'+id+'/want','POST'); toast('Added to wanted — will search automatically'); render(); }
+async function unwantBook(id) { await api('/api/book/'+id+'/unwant','POST'); toast('Removed from wanted'); render(); }
+async function wantAll(authorId, bookType) {
+    const label = bookType === 'audiobook' ? 'audiobooks' : 'ebooks';
+    toast('Adding all ' + label + ' to your library...');
+    const result = await api('/api/book/want-all','POST',{author_id:authorId,book_type:bookType});
+    toast(result.wanted + ' ' + label + ' added — searching automatically');
+    render();
+}
+async function triggerSearch() { toast('Searching for all wanted books...'); await api('/api/search/now','POST'); toast('Search triggered — running in background'); }
+async function startSearchWithProgress(triggerNew=true) {
+    const btn = document.getElementById('search-now-btn');
+    const wrap = document.getElementById('search-progress-wrap');
+    const bar = document.getElementById('search-progress-bar');
+    const txt = document.getElementById('search-progress-text');
+    btn.disabled = true; btn.textContent = 'Searching...';
+    wrap.style.display = 'flex';
+    bar.style.width = '0%';
+    if (triggerNew) await api('/api/search/now', 'POST');
+    const poll = setInterval(async () => {
+        try {
+            const p = await api('/api/search/progress');
+            if (p.active) {
+                const pct = p.total > 0 ? Math.round((p.done / p.total) * 100) : 0;
+                bar.style.width = pct + '%';
+                txt.textContent = `${p.done}/${p.total}` + (p.grabbed ? ` · ${p.grabbed} grabbed` : '') + (p.current ? ` · ${p.current.substring(0,30)}` : '');
+            } else {
+                bar.style.width = '100%';
+                txt.textContent = p.grabbed ? `Done · ${p.grabbed} grabbed` : 'Done · no matches';
+                clearInterval(poll);
+                setTimeout(() => {
+                    wrap.style.display = 'none';
+                    btn.disabled = false; btn.textContent = 'Search Now';
+                    render();
+                }, 2000);
+            }
+        } catch { clearInterval(poll); wrap.style.display='none'; btn.disabled=false; btn.textContent='Search Now'; }
+    }, 1500);
+}
+async function checkAudiobooks(authorId) {
+    toast('Checking iTunes for audiobooks... this may take a minute.');
+    const result = await api('/api/author/add-audiobooks', 'POST', {author_id: authorId});
+    toast(`Found ${result.added} audiobooks (checked ${result.checked} titles)`);
+    render();
+}
+async function checkAllAudiobooks() {
+    toast('Checking for audiobooks across all authors — this runs in the background.');
+    await api('/api/audiobooks/check-all', 'POST');
+    // Poll for progress every 10 seconds for up to 10 minutes
+    let polls = 0;
+    const poller = setInterval(async () => {
+        polls++;
+        await render();
+        if (polls >= 60) clearInterval(poller);
+    }, 10000);
+}
+async function resetLibrary() {
+    const typed = prompt('This will permanently delete ALL authors, books, and download history.\n\nType "delete everything" to confirm:');
+    if (typed !== 'delete everything') { toast('Reset cancelled.'); return; }
+    toast('Clearing library...');
+    await api('/api/reset','POST');
+    toast('Library cleared. Start fresh from Discover.');
+    render();
+}
+
+function manualSearch(bookId, author, title, bookType) {
+    const modal = document.getElementById('search-modal');
+    modal.style.display = 'flex';
+    const input = document.getElementById('indexer-search');
+    input.value = author + ' ' + title;
+    input.dataset.bookId = bookId;
+    input.dataset.bookType = bookType || 'ebook';
+    document.getElementById('indexer-results').innerHTML = '';
+
+    // Update modal title based on type
+    const modalTitle = document.getElementById('search-modal-title');
+    if (bookType === 'audiobook') {
+        modalTitle.textContent = 'Find Audiobook Download';
+    } else {
+        modalTitle.textContent = 'Find eBook Download';
+    }
+
+    searchIndexers(input.value);
+}
+
+async function searchIndexers(query) {
+    const el = document.getElementById('indexer-results');
+    el.innerHTML = '<div class="loading">Searching indexers...</div>';
+    const bookId = document.getElementById('indexer-search').dataset.bookId;
+    const bookType = document.getElementById('indexer-search').dataset.bookType || 'ebook';
+    let url = '/api/search?q='+encodeURIComponent(query);
+    if (bookId) url += '&book_id=' + bookId;
+    const results = await api(url);
+    if (!results.length) { el.innerHTML = '<div style="color:var(--text3);padding:14px;font-size:13px;">No results found.</div>'; return; }
+
+    // Filter results to show relevant type first (only when not scored)
+    let display = results;
+    if (!bookId) {
+        const filtered = results.filter(r => {
+            const t = r.title.toLowerCase();
+            if (bookType === 'audiobook') {
+                return t.includes('audiobook') || t.includes('mp3') || t.includes('m4b') || r.category.startsWith('3');
+            }
+            return !t.includes('audiobook') || t.includes('epub') || t.includes('pdf') || t.includes('mobi');
+        });
+        display = filtered.length ? filtered : results;
+    }
+
+    el.innerHTML = display.slice(0,30).map(r => {
+        const t = r.title.toLowerCase();
+        const isAudio = t.includes('audiobook') || t.includes('mp3') || t.includes('m4b') || r.category.startsWith('3');
+        const typeBadge = isAudio ? '<span class="badge b-blue" style="margin-left:8px;">Audio</span>' : '<span class="badge b-green" style="margin-left:8px;">eBook</span>';
+        const protoBadge = r.protocol === 'torrent'
+            ? '<span class="badge b-gray" style="margin-left:6px;">Torrent</span>'
+            : '<span class="badge b-gray" style="margin-left:6px;">Usenet</span>';
+        const seederInfo = r.seeders != null ? ` &middot; ${r.seeders} seed${r.seeders!==1?'s':''}` : '';
+        let scoreBadge = '';
+        if (r.score != null) {
+            const sc = r.score;
+            const cls = sc >= 70 ? 'b-green' : sc >= 40 ? 'b-yellow' : 'b-red';
+            scoreBadge = `<span class="badge ${cls}" style="margin-left:8px;">${sc}</span>`;
+        }
+        const linkEsc = esc(r.link).replace(/'/g,"\\'");
+        const titleEsc = esc(r.title).replace(/'/g,"\\'");
+        return `
+        <div class="sr" onclick="grabResult('${linkEsc}',${bookId||'null'},'${titleEsc}','${r.protocol||'usenet'}',${r.size||0})">
+            <div class="sr-info">
+                <div class="sr-title">${esc(r.title)}${typeBadge}${protoBadge}${scoreBadge}</div>
+                <div class="sr-detail">${fmtSize(r.size)} &middot; Indexer ${r.indexer_id}${seederInfo}</div>
+            </div>
+        </div>
+    `}).join('');
+}
+
+async function grabResult(link, bookId, title, protocol, size) {
+    const client = protocol === 'torrent' ? 'torrent client' : 'NZBGet';
+    toast('Sending to ' + client + '...');
+    const r = await api('/api/grab','POST',{link, book_id:bookId, title, protocol: protocol||'usenet', size: size||0});
+    toast(r.error ? 'Failed: '+r.error : 'Download started — sent to ' + client);
+    // Refresh book detail behind the modal if open
+    if (bookId) openBookDetail(bookId);
+    render();
+}
+
+async function retryDownload(downloadId) {
+    toast('Retrying download...');
+    const r = await api('/api/download/'+downloadId+'/retry','POST');
+    if (r.error) { toast('Retry failed: '+r.error); return; }
+    toast('Book reset to wanted — searching now');
+    render();
+}
+
+function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+render();
+</script>
+</body>
+</html>

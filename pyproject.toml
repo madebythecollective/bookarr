@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bookarr"
+version = "1.0.0"
+description = "Personal book and audiobook manager — like Radarr, but for books"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+    "pillow",
+    "requests",
+    "beautifulsoup4",
+]
+
+[project.scripts]
+bookarr = "bookarr:main"

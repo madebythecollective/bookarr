@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Warm kraft background -->
+  <rect width="32" height="32" rx="4" fill="#3a342c"/>
+  <!-- Orange accent bar (top) -->
+  <rect x="0" y="0" width="32" height="4" rx="4" fill="#e26a2c"/>
+  <rect x="0" y="2" width="32" height="2" fill="#e26a2c"/>
+  <!-- Bold "B" in Futura style -->
+  <text x="16" y="24" font-family="Futura,Jost,Helvetica,sans-serif" font-size="20" font-weight="700" fill="#f5f0e6" text-anchor="middle" letter-spacing="-0.5">B</text>
+</svg>

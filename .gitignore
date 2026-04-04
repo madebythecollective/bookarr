@@ -1,0 +1,10 @@
+bookarr.db
+bookarr.db-shm
+bookarr.db-wal
+bookarr.db.bak
+static/covers/
+__pycache__/
+*.pyc
+.env
+*.log
+.DS_Store
