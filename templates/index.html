@@ -459,7 +459,10 @@ tr:hover td { background: var(--accent-dim); }
         <button onclick="showPage('activity')" id="nav-activity"><span>Activity</span></button>
         <button onclick="showPage('settings')" id="nav-settings"><span>Settings</span></button>
     </nav>
-    <div class="version">BOOKARR v1.0</div>
+    <div style="padding:0 10px 12px;">
+        <button onclick="showPage('about')" id="nav-about" style="width:100%;text-align:left;background:none;border:none;color:var(--text3);font-family:inherit;font-size:12px;padding:8px 12px;border-radius:var(--radius);cursor:pointer;letter-spacing:0.5px;" onmouseover="this.style.color='#e8e1d4'" onmouseout="this.style.color='var(--text3)'"><span>About Bookarr</span></button>
+    </div>
+    <div class="version">BOOKARR v0.2.0</div>
 </div>
 
 <div class="main">
@@ -552,7 +555,7 @@ let currentPage = 'library';
 // Restore page from URL hash on load
 (function() {
     const hash = location.hash.replace('#','');
-    if (hash && ['library','discover','activity','settings'].includes(hash)) {
+    if (hash && ['library','discover','activity','settings','about'].includes(hash)) {
         currentPage = hash;
         document.getElementById('nav-library').classList.remove('active');
         const btn = document.getElementById('nav-' + hash);
@@ -743,6 +746,98 @@ function viewControls() {
     </div>`;
 }
 
+// --- About Page ---
+function renderAbout(app) {
+    const S = 'style';
+    const link = (href, text) => `<a href="${href}" target="_blank" rel="noopener" style="color:var(--accent);">${text}</a>`;
+    const ghBase = 'https://github.com/johnhowrey/bookarr-public';
+    app.innerHTML = `
+    <div style="max-width:720px;margin:0 auto;padding:40px 0;">
+        <h1 style="font-size:28px;margin-bottom:8px;">Bookarr</h1>
+        <div style="font-size:14px;color:var(--text2);margin-bottom:32px;">Version 0.2.0 &middot; MIT License &middot; ${link(ghBase, 'GitHub')}</div>
+
+        <div style="background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);padding:24px;margin-bottom:24px;">
+            <h2 style="font-size:18px;margin-bottom:12px;">What is Bookarr?</h2>
+            <p style="font-size:14px;line-height:1.7;color:var(--text2);">
+                Bookarr is a self-hosted book and audiobook library manager. It searches usenet and torrent indexers via Prowlarr,
+                downloads through NZBGet or torrent clients, and organizes your library automatically. Think of it as Radarr or Sonarr, but for books.
+            </p>
+            <p style="font-size:14px;line-height:1.7;color:var(--text2);margin-top:12px;">
+                Bookarr does not host, distribute, or provide any copyrighted content. It is a tool that connects to services you operate independently.
+            </p>
+        </div>
+
+        <div style="background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);padding:24px;margin-bottom:24px;">
+            <h2 style="font-size:18px;margin-bottom:16px;">Documentation</h2>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div style="padding:12px;background:var(--bg);border-radius:var(--radius);">
+                    <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Getting Started</div>
+                    <div style="font-size:12px;color:var(--text3);line-height:1.6;">
+                        ${link(ghBase+'/blob/main/docs/installation.md', 'Installation')}<br>
+                        ${link(ghBase+'/blob/main/docs/quickstart.md', 'Quick Start')}<br>
+                        ${link(ghBase+'/blob/main/docs/configuration.md', 'Configuration')}
+                    </div>
+                </div>
+                <div style="padding:12px;background:var(--bg);border-radius:var(--radius);">
+                    <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Using Bookarr</div>
+                    <div style="font-size:12px;color:var(--text3);line-height:1.6;">
+                        ${link(ghBase+'/blob/main/docs/library.md', 'Managing Your Library')}<br>
+                        ${link(ghBase+'/blob/main/docs/search.md', 'Search & Downloads')}<br>
+                        ${link(ghBase+'/blob/main/docs/notifications.md', 'Notifications')}
+                    </div>
+                </div>
+                <div style="padding:12px;background:var(--bg);border-radius:var(--radius);">
+                    <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Reference</div>
+                    <div style="font-size:12px;color:var(--text3);line-height:1.6;">
+                        ${link(ghBase+'/blob/main/docs/api.md', 'API Reference')}<br>
+                        ${link(ghBase+'/blob/main/docs/database.md', 'Database Schema')}<br>
+                        ${link(ghBase+'/blob/main/docs/settings.md', 'Settings Reference')}<br>
+                        ${link(ghBase+'/blob/main/docs/seed-categories.md', 'Seed Categories')}
+                    </div>
+                </div>
+                <div style="padding:12px;background:var(--bg);border-radius:var(--radius);">
+                    <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Technical</div>
+                    <div style="font-size:12px;color:var(--text3);line-height:1.6;">
+                        ${link(ghBase+'/blob/main/docs/architecture.md', 'Architecture')}<br>
+                        ${link(ghBase+'/blob/main/docs/scoring.md', 'Search Scoring')}<br>
+                        ${link(ghBase+'/blob/main/docs/folder-structure.md', 'Folder Structure')}<br>
+                        ${link(ghBase+'/blob/main/docs/service.md', 'Running as a Service')}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);padding:24px;margin-bottom:24px;">
+            <h2 style="font-size:18px;margin-bottom:16px;">Legal</h2>
+            <div style="font-size:13px;line-height:2;color:var(--text2);">
+                ${link(ghBase+'/blob/main/TERMS.md', 'Terms of Use')} &middot;
+                ${link(ghBase+'/blob/main/PRIVACY.md', 'Privacy Policy')} &middot;
+                ${link(ghBase+'/blob/main/DISCLAIMER.md', 'Disclaimer')} &middot;
+                ${link(ghBase+'/blob/main/LICENSE', 'MIT License')}
+            </div>
+            <p style="font-size:12px;color:var(--text3);margin-top:8px;line-height:1.6;">
+                Bookarr is provided "as is" without warranty of any kind. You are responsible for ensuring your use complies with all applicable laws.
+                Bookarr does not collect, transmit, or share any personal data with the project maintainers.
+            </p>
+        </div>
+
+        <div style="background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);padding:24px;margin-bottom:24px;">
+            <h2 style="font-size:18px;margin-bottom:16px;">Links</h2>
+            <div style="font-size:13px;line-height:2;color:var(--text2);">
+                ${link(ghBase, 'Source Code on GitHub')}<br>
+                ${link(ghBase+'/blob/main/CHANGELOG.md', 'Changelog & Release Notes')}<br>
+                ${link(ghBase+'/issues', 'Report an Issue')}<br>
+                ${link(ghBase+'/blob/main/docs/README.md', 'Full Documentation Index')}
+            </div>
+        </div>
+
+        <div style="text-align:center;font-size:11px;color:var(--text3);padding:24px 0;">
+            Bookarr is open source software released under the MIT License.<br>
+            Built with Python, SQLite, and Open Library.
+        </div>
+    </div>`;
+}
+
 // --- Render ---
 async function render() {
     const app = document.getElementById('app');
@@ -753,6 +848,7 @@ async function render() {
             case 'author-detail': await renderAuthorDetail(app); break;
             case 'activity': await renderActivity(app); break;
             case 'settings': await renderSettings(app); break;
+            case 'about': renderAbout(app); break;
         }
     } catch(e) { app.innerHTML = '<div class="loading">Error loading page.</div>'; console.error(e); }
 }

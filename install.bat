@@ -33,8 +33,12 @@ echo   python "%SCRIPT_DIR%bookarr.py"
 echo.
 echo Then open http://localhost:8585 in your browser.
 echo.
-echo Configuration:
-echo   - Set your eBook and audiobook save paths in Settings
-echo   - Requires Prowlarr (localhost:9696) and NZBGet (localhost:6789)
+echo First run:
+echo   1. Go to Settings and configure your Prowlarr URL and API key
+echo   2. Configure your NZBGet or torrent client connection
+echo   3. Set your eBook and audiobook save paths
+echo   4. Go to Discover and add authors or seed from curated lists
+echo.
+echo Documentation: https://github.com/johnhowrey/bookarr-public/tree/main/docs
 echo.
 pause

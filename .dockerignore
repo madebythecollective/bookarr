@@ -1,0 +1,16 @@
+.git
+.gitignore
+*.md
+docs/
+service/
+install.sh
+install.bat
+bookarr.db
+bookarr.db-shm
+bookarr.db-wal
+bookarr.log
+static/covers/*
+__pycache__
+*.pyc
+.DS_Store
+.env

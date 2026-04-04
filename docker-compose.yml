@@ -1,0 +1,15 @@
+services:
+  bookarr:
+    build: .
+    container_name: bookarr
+    restart: unless-stopped
+    ports:
+      - "8585:8585"
+    volumes:
+      # Persistent data (database, covers, logs)
+      - ./data:/app/data
+      # Mount your media directories
+      # - /path/to/ebooks:/books
+      # - /path/to/audiobooks:/audiobooks
+    environment:
+      - TZ=America/Los_Angeles
