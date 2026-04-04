@@ -1,6 +1,6 @@
 # Building installers
 
-This guide covers building the macOS `.dmg` and Windows `.exe` installers from source. Most users should download pre-built installers from the [Releases page](https://github.com/johnhowrey/bookarr-public/releases/latest) instead.
+This guide covers building the macOS `.dmg` and Windows `.exe` installers from source. Most users should download pre-built installers from the [Releases page](https://github.com/madebythecollective/bookarr/releases/latest) instead.
 
 ## How it works
 

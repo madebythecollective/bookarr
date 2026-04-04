@@ -70,4 +70,4 @@ If any provision of these terms is found unenforceable, the remaining provisions
 
 ## Contact
 
-For questions about these terms, open an issue on the [Bookarr GitHub repository](https://github.com/johnhowrey/bookarr-public).
+For questions about these terms, open an issue on the [Bookarr GitHub repository](https://github.com/madebythecollective/bookarr).

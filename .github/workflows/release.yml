@@ -100,8 +100,8 @@ jobs:
 
             **Windows:** Download `Bookarr-x.x.x-windows-setup.exe` and run the installer.
 
-            **Docker / Python:** See the [installation guide](https://github.com/johnhowrey/bookarr-public/blob/main/docs/installation.md).
+            **Docker / Python:** See the [installation guide](https://github.com/madebythecollective/bookarr/blob/main/docs/installation.md).
 
             ## What's Changed
 
-            See the [Changelog](https://github.com/johnhowrey/bookarr-public/blob/main/CHANGELOG.md) for details.
+            See the [Changelog](https://github.com/madebythecollective/bookarr/blob/main/CHANGELOG.md) for details.

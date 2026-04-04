@@ -28,7 +28,7 @@ cp service/com.bookarr.plist ~/Library/LaunchAgents/
 nano ~/Library/LaunchAgents/com.bookarr.plist
 ```
 
-Replace all instances of `BOOKARR_PATH` (for example, `/Users/yourname/bookarr-public`).
+Replace all instances of `BOOKARR_PATH` (for example, `/Users/yourname/bookarr`).
 
 3. Load the service:
 
@@ -43,7 +43,7 @@ launchctl load ~/Library/LaunchAgents/com.bookarr.plist
 | Start | `launchctl load ~/Library/LaunchAgents/com.bookarr.plist` |
 | Stop | `launchctl unload ~/Library/LaunchAgents/com.bookarr.plist` |
 | Check status | `launchctl list | grep bookarr` |
-| View logs | `tail -f /path/to/bookarr-public/bookarr.log` |
+| View logs | `tail -f /path/to/bookarr/bookarr.log` |
 
 ### Plist configuration details
 
@@ -114,8 +114,8 @@ Bookarr does not include a native Windows service. There are several options for
 2. Install the service:
 
 ```cmd
-nssm install Bookarr python C:\path\to\bookarr-public\bookarr.py
-nssm set Bookarr AppDirectory C:\path\to\bookarr-public
+nssm install Bookarr python C:\path\to\bookarr\bookarr.py
+nssm set Bookarr AppDirectory C:\path\to\bookarr
 nssm start Bookarr
 ```
 
@@ -131,7 +131,7 @@ nssm remove Bookarr confirm
 
 1. Open Task Scheduler.
 2. Create a new task with trigger "At startup."
-3. Set the action to run `python` with argument `C:\path\to\bookarr-public\bookarr.py`.
+3. Set the action to run `python` with argument `C:\path\to\bookarr\bookarr.py`.
 4. Set "Start in" to the Bookarr installation directory.
 5. Check "Run whether user is logged on or not."
 

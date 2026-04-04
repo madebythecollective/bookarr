@@ -23,8 +23,8 @@ Download the latest release for your platform — no Python or technical setup r
 
 | Platform | Download | Notes |
 |---|---|---|
-| **macOS** | [Bookarr-0.2.0-macos.dmg](https://github.com/johnhowrey/bookarr-public/releases/latest) | Open the DMG and drag Bookarr to Applications |
-| **Windows** | [Bookarr-0.2.0-windows-setup.exe](https://github.com/johnhowrey/bookarr-public/releases/latest) | Run the installer, launch from Start Menu |
+| **macOS** | [Bookarr-0.2.0-macos.dmg](https://github.com/madebythecollective/bookarr/releases/latest) | Open the DMG and drag Bookarr to Applications |
+| **Windows** | [Bookarr-0.2.0-windows-setup.exe](https://github.com/madebythecollective/bookarr/releases/latest) | Run the installer, launch from Start Menu |
 | **Docker** | See [Docker install](docs/installation.md#docker) | `docker compose up -d` |
 | **From source** | See below | Requires Python 3.10+ |
 
@@ -35,8 +35,8 @@ After launching, open [http://localhost:8585](http://localhost:8585) and configu
 For developers or if you prefer running from source:
 
 ```bash
-git clone https://github.com/johnhowrey/bookarr-public.git
-cd bookarr-public
+git clone https://github.com/madebythecollective/bookarr.git
+cd bookarr
 pip install -r requirements.txt
 python3 bookarr.py
 ```
@@ -108,4 +108,4 @@ Bookarr does not host, distribute, or provide any copyrighted content. It is a t
 
 ## License
 
-[MIT](LICENSE) — Copyright 2025 John Howrey
+[MIT](LICENSE) — Copyright 2025 Made By the Collective LLC

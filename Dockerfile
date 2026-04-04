@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-LABEL maintainer="John Howrey"
+LABEL maintainer="Made By the Collective"
 LABEL description="Bookarr — Book and audiobook library manager"
 
 WORKDIR /app

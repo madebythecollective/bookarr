@@ -47,5 +47,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Service files.** macOS launchd plist and Linux systemd unit file for running as a background service.
 - **Install scripts.** Automated setup for macOS, Linux, and Windows.
 
-[0.2.0]: https://github.com/johnhowrey/bookarr-public/releases/tag/v0.2.0
-[0.1.0]: https://github.com/johnhowrey/bookarr-public/releases/tag/v0.1.0
+[0.2.0]: https://github.com/madebythecollective/bookarr/releases/tag/v0.2.0
+[0.1.0]: https://github.com/madebythecollective/bookarr/releases/tag/v0.1.0

@@ -39,6 +39,6 @@ echo   2. Configure your NZBGet or torrent client connection
 echo   3. Set your eBook and audiobook save paths
 echo   4. Go to Discover and add authors or seed from curated lists
 echo.
-echo Documentation: https://github.com/johnhowrey/bookarr-public/tree/main/docs
+echo Documentation: https://github.com/madebythecollective/bookarr/tree/main/docs
 echo.
 pause

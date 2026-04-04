@@ -8,8 +8,8 @@
 
 #define MyAppName "Bookarr"
 #define MyAppVersion "0.2.0"
-#define MyAppPublisher "John Howrey"
-#define MyAppURL "https://github.com/johnhowrey/bookarr-public"
+#define MyAppPublisher "Made By the Collective"
+#define MyAppURL "https://github.com/madebythecollective/bookarr"
 #define MyAppExeName "Bookarr.exe"
 
 [Setup]

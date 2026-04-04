@@ -93,4 +93,4 @@ Changes to this privacy policy will be noted in the [Changelog](CHANGELOG.md). M
 
 ## Contact
 
-For privacy questions, open an issue on the [Bookarr GitHub repository](https://github.com/johnhowrey/bookarr-public).
+For privacy questions, open an issue on the [Bookarr GitHub repository](https://github.com/madebythecollective/bookarr).

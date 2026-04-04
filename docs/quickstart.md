@@ -13,7 +13,7 @@ Before you begin, make sure you have:
 
 **Option A: Download the installer (recommended)**
 
-Download the installer for your platform from the [Releases page](https://github.com/johnhowrey/bookarr-public/releases/latest):
+Download the installer for your platform from the [Releases page](https://github.com/madebythecollective/bookarr/releases/latest):
 
 - **macOS:** Open the `.dmg` and drag Bookarr to Applications. Launch it.
 - **Windows:** Run the `.exe` installer. Launch Bookarr from the Start Menu.
@@ -21,8 +21,8 @@ Download the installer for your platform from the [Releases page](https://github
 **Option B: Run from source**
 
 ```bash
-git clone https://github.com/johnhowrey/bookarr-public.git
-cd bookarr-public
+git clone https://github.com/madebythecollective/bookarr.git
+cd bookarr
 pip install -r requirements.txt
 python3 bookarr.py
 ```

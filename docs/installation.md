@@ -4,7 +4,7 @@ This guide covers installing Bookarr on macOS, Linux, and Windows.
 
 ## Recommended: Download the installer
 
-The easiest way to install Bookarr is to download the installer for your platform from the [Releases page](https://github.com/johnhowrey/bookarr-public/releases/latest). No Python installation or command-line knowledge is required.
+The easiest way to install Bookarr is to download the installer for your platform from the [Releases page](https://github.com/madebythecollective/bookarr/releases/latest). No Python installation or command-line knowledge is required.
 
 | Platform | File | What to do |
 |---|---|---|
@@ -49,8 +49,8 @@ Bookarr has three Python dependencies: `pillow`, `requests`, and `beautifulsoup4
 ### Option 1: Install script
 
 ```bash
-git clone https://github.com/johnhowrey/bookarr-public.git
-cd bookarr-public
+git clone https://github.com/madebythecollective/bookarr.git
+cd bookarr
 ./install.sh
 ```
 
@@ -76,8 +76,8 @@ launchctl unload ~/Library/LaunchAgents/com.bookarr.plist
 ### Option 2: Manual install
 
 ```bash
-git clone https://github.com/johnhowrey/bookarr-public.git
-cd bookarr-public
+git clone https://github.com/madebythecollective/bookarr.git
+cd bookarr
 pip install -r requirements.txt
 python3 bookarr.py
 ```
@@ -104,8 +104,8 @@ python3 bookarr.py
 ### Option 1: Install script
 
 ```bash
-git clone https://github.com/johnhowrey/bookarr-public.git
-cd bookarr-public
+git clone https://github.com/madebythecollective/bookarr.git
+cd bookarr
 ./install.sh
 ```
 
@@ -114,8 +114,8 @@ The install script installs dependencies and prints instructions for setting up 
 ### Option 2: Manual install with systemd
 
 ```bash
-git clone https://github.com/johnhowrey/bookarr-public.git
-cd bookarr-public
+git clone https://github.com/madebythecollective/bookarr.git
+cd bookarr
 pip install -r requirements.txt
 ```
 
@@ -152,8 +152,8 @@ journalctl -u bookarr -f
 ### Option 1: Install script
 
 ```cmd
-git clone https://github.com/johnhowrey/bookarr-public.git
-cd bookarr-public
+git clone https://github.com/madebythecollective/bookarr.git
+cd bookarr
 install.bat
 ```
 
@@ -162,8 +162,8 @@ The install script installs Python dependencies and creates the covers directory
 ### Option 2: Manual install
 
 ```cmd
-git clone https://github.com/johnhowrey/bookarr-public.git
-cd bookarr-public
+git clone https://github.com/madebythecollective/bookarr.git
+cd bookarr
 pip install -r requirements.txt
 python bookarr.py
 ```
@@ -173,8 +173,8 @@ python bookarr.py
 Bookarr does not include a native Windows service wrapper. To run it as a service, use [NSSM](https://nssm.cc/):
 
 ```cmd
-nssm install Bookarr python C:\path\to\bookarr-public\bookarr.py
-nssm set Bookarr AppDirectory C:\path\to\bookarr-public
+nssm install Bookarr python C:\path\to\bookarr\bookarr.py
+nssm set Bookarr AppDirectory C:\path\to\bookarr
 nssm start Bookarr
 ```
 
@@ -183,8 +183,8 @@ nssm start Bookarr
 ### Docker Compose (recommended)
 
 ```bash
-git clone https://github.com/johnhowrey/bookarr-public.git
-cd bookarr-public
+git clone https://github.com/madebythecollective/bookarr.git
+cd bookarr
 ```
 
 Edit `docker-compose.yml` to mount your media directories:
@@ -242,7 +242,7 @@ If Bookarr does not start, check:
 To update Bookarr to the latest version:
 
 ```bash
-cd bookarr-public
+cd bookarr
 git pull origin main
 pip install -r requirements.txt
 ```

@@ -151,7 +151,7 @@ All requests use `urllib.request` with timeouts.
 ## File structure
 
 ```
-bookarr-public/
+bookarr/
   bookarr.py            Main application (all server logic)
   templates/
     index.html          Web UI (HTML + inline CSS + inline JS)
