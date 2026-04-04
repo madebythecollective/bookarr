@@ -1,0 +1,58 @@
+name: Feature Request
+description: Suggest an idea or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea for Bookarr? We'd love to hear it. Feature requests help shape the project's direction.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What would you like to see?
+      description: Describe the feature or improvement clearly.
+      placeholder: |
+        It would be great if Bookarr could send notifications through Discord webhooks in addition to Pushover...
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What are you trying to do that you can't do today, or what's harder than it should be?
+      placeholder: |
+        I use Discord for all my other *arr notifications and having to set up a separate Pushover account just for Bookarr is inconvenient...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      description: Have you found a workaround, or thought of other ways this could work?
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: What area does this affect?
+      options:
+        - Search / Downloads
+        - Library management
+        - Web UI
+        - Notifications
+        - Docker / Deployment
+        - API
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Would you be willing to help?
+      description: No pressure — just helps us gauge community interest in contributing.
+      options:
+        - label: I'd be interested in submitting a pull request for this

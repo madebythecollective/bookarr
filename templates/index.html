@@ -822,11 +822,26 @@ function renderAbout(app) {
         </div>
 
         <div style="background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);padding:24px;margin-bottom:24px;">
+            <h2 style="font-size:18px;margin-bottom:16px;">Feedback & Community</h2>
+            <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px;">
+                Bookarr is open source and community-driven. Bug reports, feature ideas, and code contributions are all welcome.
+            </p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <a href="${ghBase}/issues/new?template=bug_report.yml" target="_blank" rel="noopener"
+                   style="display:inline-block;padding:10px 18px;background:var(--rose-dim);color:var(--rose);border-radius:var(--radius);font-size:13px;font-weight:500;text-decoration:none;">Report a Bug</a>
+                <a href="${ghBase}/issues/new?template=feature_request.yml" target="_blank" rel="noopener"
+                   style="display:inline-block;padding:10px 18px;background:var(--sky-dim);color:var(--sky);border-radius:var(--radius);font-size:13px;font-weight:500;text-decoration:none;">Request a Feature</a>
+                <a href="${ghBase}/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener"
+                   style="display:inline-block;padding:10px 18px;background:var(--emerald-dim);color:var(--emerald);border-radius:var(--radius);font-size:13px;font-weight:500;text-decoration:none;">Contribute Code</a>
+            </div>
+        </div>
+
+        <div style="background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);padding:24px;margin-bottom:24px;">
             <h2 style="font-size:18px;margin-bottom:16px;">Links</h2>
             <div style="font-size:13px;line-height:2;color:var(--text2);">
                 ${link(ghBase, 'Source Code on GitHub')}<br>
                 ${link(ghBase+'/blob/main/CHANGELOG.md', 'Changelog & Release Notes')}<br>
-                ${link(ghBase+'/issues', 'Report an Issue')}<br>
+                ${link(ghBase+'/issues', 'All Issues')}<br>
                 ${link(ghBase+'/blob/main/docs/README.md', 'Full Documentation Index')}
             </div>
         </div>

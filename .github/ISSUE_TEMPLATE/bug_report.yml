@@ -1,0 +1,93 @@
+name: Bug Report
+description: Something isn't working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill out the details below so we can reproduce and fix it.
+
+  - type: input
+    id: version
+    attributes:
+      label: Bookarr version
+      description: Check the sidebar or About page in the web UI
+      placeholder: "0.2.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: How did you install Bookarr?
+      options:
+        - macOS installer (.dmg)
+        - Windows installer (.exe)
+        - Docker
+        - From source (Python)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows 10
+        - Windows 11
+        - Ubuntu / Debian
+        - Other Linux
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug clearly. What did you expect to happen, and what actually happened?
+      placeholder: |
+        When I click "Want All" on an author's page, the audiobooks don't get marked as wanted...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce this? Be as specific as possible.
+      placeholder: |
+        1. Go to Discover
+        2. Click on an author
+        3. Click "Want All"
+        4. Switch to the Audiobooks tab — they're still "missing"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Copy any relevant lines from bookarr.log or the console output. This will be formatted as code automatically.
+      render: shell
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant configuration
+      description: "Any relevant settings (do NOT paste API keys or passwords)"
+      render: yaml
+
+  - type: dropdown
+    id: download-client
+    attributes:
+      label: Download client
+      options:
+        - NZBGet
+        - qBittorrent
+        - Transmission
+        - None configured
+        - Not applicable
+    validations:
+      required: false

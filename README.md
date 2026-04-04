@@ -97,6 +97,14 @@ python3 bookarr.py --seed           # Seed with prize-winning authors
 python3 bookarr.py --no-search      # Disable background searching
 ```
 
+## Contributing
+
+Bookarr is open source and community-driven. We welcome bug reports, feature ideas, and code contributions.
+
+- [Report a bug](https://github.com/madebythecollective/bookarr/issues/new?template=bug_report.yml)
+- [Request a feature](https://github.com/madebythecollective/bookarr/issues/new?template=feature_request.yml)
+- [Contributing guide](CONTRIBUTING.md) — how to set up, code guidelines, and what makes a good PR
+
 ## Legal
 
 - [Terms of Use](TERMS.md)
