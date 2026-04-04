@@ -41,10 +41,15 @@ sys.stderr.reconfigure(line_buffering=True)
 # covers, logs) goes to a platform-appropriate user data directory.
 
 def _get_paths():
+    # BOOKARR_DATA_DIR env var overrides the data directory (useful for Docker)
+    env_data_dir = os.environ.get("BOOKARR_DATA_DIR")
+
     if getattr(sys, 'frozen', False):
         # Running as a PyInstaller bundle
         bundle_dir = sys._MEIPASS
-        if sys.platform == 'darwin':
+        if env_data_dir:
+            data_dir = env_data_dir
+        elif sys.platform == 'darwin':
             data_dir = os.path.join(os.path.expanduser("~"), "Library",
                                     "Application Support", "Bookarr")
         elif sys.platform == 'win32':
@@ -56,7 +61,9 @@ def _get_paths():
     else:
         # Running from source — everything in the script directory
         bundle_dir = os.path.dirname(os.path.abspath(__file__))
-        data_dir = bundle_dir
+        data_dir = env_data_dir if env_data_dir else bundle_dir
+        if env_data_dir:
+            os.makedirs(data_dir, exist_ok=True)
     return bundle_dir, data_dir
 
 _BUNDLE_DIR, _DATA_DIR = _get_paths()
@@ -2963,6 +2970,8 @@ class BookarrHandler(BaseHTTPRequestHandler):
             # Torrent client
             "torrent_client", "torrent_host", "torrent_user", "torrent_pass",
             "torrent_category", "seed_ratio_limit", "seed_time_limit",
+            # Notifications
+            "pushover_token", "pushover_user",
         }
         updated = 0
         for key, value in data.items():

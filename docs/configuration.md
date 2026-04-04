@@ -113,3 +113,11 @@ Options:
   --seed           Seed all curated author categories, then exit
   --no-search      Start without the background search engine
 ```
+
+## Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `BOOKARR_DATA_DIR` | Script directory (source) or platform data dir (packaged) | Override the directory where Bookarr stores its database, cover cache, and logs. Useful for Docker or custom deployments. |
+
+When running in Docker, this is automatically set to `/app/data` so the database persists across container restarts via the mounted volume.

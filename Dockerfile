@@ -15,7 +15,10 @@ COPY templates/ templates/
 COPY static/ static/
 
 # Create runtime directories
-RUN mkdir -p static/covers
+RUN mkdir -p /app/data/static/covers
+
+# Set data directory to the persistent volume
+ENV BOOKARR_DATA_DIR=/app/data
 
 # Default port
 EXPOSE 8585
