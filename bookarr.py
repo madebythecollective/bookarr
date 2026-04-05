@@ -1239,6 +1239,17 @@ def test_torrent_client():
 # ---------------------------------------------------------------------------
 
 BOOK_EXTENSIONS = {".epub", ".mobi", ".azw", ".azw3", ".pdf", ".djvu", ".fb2", ".cbz", ".cbr"}
+AUDIO_EXTENSIONS = {".mp3", ".m4b", ".m4a", ".ogg", ".flac"}
+ALL_MEDIA_EXTENSIONS = BOOK_EXTENSIONS | AUDIO_EXTENSIONS
+
+def _file_type_from_ext(ext):
+    """Determine actual file type from extension. Returns 'ebook', 'audiobook', or None."""
+    ext = ext.lower()
+    if ext in BOOK_EXTENSIONS:
+        return "ebook"
+    if ext in AUDIO_EXTENSIONS:
+        return "audiobook"
+    return None
 
 def scan_library():
     """Scan save paths and source folders, match files to known books, and organize them."""
@@ -1262,22 +1273,24 @@ def scan_library():
             dirnames[:] = [d for d in dirnames if not d.startswith('.')]
             for fname in filenames:
                 ext = os.path.splitext(fname)[1].lower()
-                if ext not in BOOK_EXTENSIONS and ext not in {".mp3", ".m4b", ".m4a", ".ogg", ".flac"}:
+                if ext not in ALL_MEDIA_EXTENSIONS:
                     continue
                 fpath = os.path.join(dirpath, fname)
-                # Try to match by filename
+                # Determine actual type from file extension
+                actual_type = _file_type_from_ext(ext) or "ebook"
+                # Try to match by filename — prefer matching the actual file type
                 name_clean = os.path.splitext(fname)[0].lower()
-                # Search for matching book
                 row = conn.execute(
                     "SELECT b.id, b.book_type, a.name as author_name, b.title "
                     "FROM books b JOIN authors a ON b.author_id = a.id "
-                    "WHERE b.status != 'downloaded' AND lower(b.title) LIKE ?",
-                    (f"%{name_clean[:30]}%",)
+                    "WHERE b.status != 'downloaded' AND lower(b.title) LIKE ? "
+                    "ORDER BY CASE WHEN b.book_type = ? THEN 0 ELSE 1 END",
+                    (f"%{name_clean[:30]}%", actual_type)
                 ).fetchone()
                 if row:
-                    # If file is not already in the organized location, move it
-                    root = get_audiobook_path() if row["book_type"] == "audiobook" else get_ebook_path()
-                    fmt_folder = "audiobook" if row["book_type"] == "audiobook" else "ebook"
+                    # Route based on actual file extension, not database tag
+                    root = get_audiobook_path() if actual_type == "audiobook" else get_ebook_path()
+                    fmt_folder = "audiobook" if actual_type == "audiobook" else "ebook"
                     organized_dir = os.path.join(
                         root,
                         _sanitize_path(row["author_name"]),
@@ -1446,12 +1459,17 @@ class SearchEngine:
                     candidates = []
                     for fname in os.listdir(dest_dir):
                         ext = os.path.splitext(fname)[1].lower()
-                        if ext in BOOK_EXTENSIONS or ext in {".mp3", ".m4b", ".m4a", ".ogg", ".flac"}:
+                        if ext in ALL_MEDIA_EXTENSIONS:
                             fsize = os.path.getsize(os.path.join(dest_dir, fname))
-                            candidates.append((fname, ext, fsize))
-                    # Sort: preferred format first, then by extension
+                            ftype = _file_type_from_ext(ext)
+                            candidates.append((fname, ext, fsize, ftype))
+                    # Sort: correct type first, then preferred format, then name
                     if candidates:
-                        candidates.sort(key=lambda x: (0 if x[1] == f".{pref_fmt}" else 1, x[0]))
+                        candidates.sort(key=lambda x: (
+                            0 if x[3] == dl["book_type"] else 1,
+                            0 if x[1] == f".{pref_fmt}" else 1,
+                            x[0]
+                        ))
                         file_path = os.path.join(dest_dir, candidates[0][0])
                         if not file_size:
                             file_size = candidates[0][2]
@@ -1574,11 +1592,16 @@ class SearchEngine:
                     for root_dir, dirs, files in os.walk(content_path):
                         for fname in files:
                             ext = os.path.splitext(fname)[1].lower()
-                            if ext in BOOK_EXTENSIONS or ext in {".mp3", ".m4b", ".m4a", ".ogg", ".flac"}:
+                            if ext in ALL_MEDIA_EXTENSIONS:
                                 fpath = os.path.join(root_dir, fname)
-                                candidates.append((fpath, ext, os.path.getsize(fpath)))
+                                ftype = _file_type_from_ext(ext)
+                                candidates.append((fpath, ext, os.path.getsize(fpath), ftype))
                     if candidates:
-                        candidates.sort(key=lambda x: (0 if x[1] == f".{pref_fmt}" else 1, -x[2]))
+                        candidates.sort(key=lambda x: (
+                            0 if x[3] == dl["book_type"] else 1,
+                            0 if x[1] == f".{pref_fmt}" else 1,
+                            -x[2]
+                        ))
                         file_path = candidates[0][0]
                         if not file_size:
                             file_size = candidates[0][2]
@@ -1690,13 +1713,19 @@ class SearchEngine:
     def _post_process(self, file_path, book_type, author_name, title):
         """Move downloaded files to the organized library folder.
         Structure: {root}/{Author Name}/{Book Title}/{ebook|audiobook}/{filename}
+        Routes based on actual file extension, not just database book_type.
         """
         if not file_path or not os.path.isfile(file_path):
             return file_path
 
         try:
-            root = get_audiobook_path() if book_type == "audiobook" else get_ebook_path()
-            fmt_folder = "audiobook" if book_type == "audiobook" else "ebook"
+            # Determine actual type from file extension — this overrides the DB tag
+            ext = os.path.splitext(file_path)[1].lower()
+            actual_type = _file_type_from_ext(ext) or book_type
+            if actual_type != book_type:
+                print(f"[Post] Type mismatch: DB says {book_type} but file is {ext} ({actual_type}) — routing to {actual_type} path")
+            root = get_audiobook_path() if actual_type == "audiobook" else get_ebook_path()
+            fmt_folder = "audiobook" if actual_type == "audiobook" else "ebook"
             dest_dir = os.path.join(
                 root,
                 _sanitize_path(author_name),
