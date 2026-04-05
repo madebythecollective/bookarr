@@ -20,7 +20,7 @@ Stores author information fetched from Open Library.
 
 ### books
 
-Stores individual book entries. Each ebook/audiobook pair for the same title is stored as two separate rows.
+Stores individual book entries. Each book has a single row with format toggle flags indicating which formats are wanted and which are available.
 
 | Column | Type | Default | Description |
 |---|---|---|---|
@@ -33,15 +33,22 @@ Stores individual book entries. Each ebook/audiobook pair for the same title is 
 | `cover_id` | INTEGER | NULL | Open Library cover ID for fetching cover art |
 | `monitored` | INTEGER | 1 | Whether the book is monitored for searching |
 | `status` | TEXT | `missing` | Current status: `missing`, `wanted`, `downloading`, `downloaded` |
-| `book_type` | TEXT | `ebook` | Format type: `ebook` or `audiobook` |
-| `path` | TEXT | NULL | Filesystem path after download |
+| `book_type` | TEXT | `book` | Always `book` in the unified model (retained for backward compatibility) |
+| `want_ebook` | INTEGER | 0 | Whether the ebook format is wanted (1) or not (0) |
+| `want_audiobook` | INTEGER | 0 | Whether the audiobook format is wanted (1) or not (0) |
+| `have_ebook` | INTEGER | 0 | Whether the ebook format has been downloaded (1) or not (0) |
+| `have_audiobook` | INTEGER | 0 | Whether the audiobook format has been downloaded (1) or not (0) |
+| `ebook_path` | TEXT | NULL | Filesystem path for the downloaded ebook |
+| `audiobook_path` | TEXT | NULL | Filesystem path for the downloaded audiobook |
+| `path` | TEXT | NULL | Legacy filesystem path (retained for backward compatibility) |
+| `subjects` | TEXT | NULL | Comma-separated subjects/genres from Open Library metadata enrichment |
 | `author_count` | INTEGER | 1 | Number of authors (used to distinguish anthologies) |
 | `added_at` | TEXT | `datetime('now')` | ISO 8601 timestamp when added |
 | `last_searched` | TEXT | NULL | ISO 8601 timestamp of last background search |
 | `last_result_count` | INTEGER | 0 | Number of results found in last search |
 | `last_grab_reason` | TEXT | NULL | Human-readable reason for last grab attempt result |
 
-**Unique constraint:** `(author_id, title, book_type)` - prevents duplicate entries for the same book and format.
+**Unique constraint:** `(author_id, title)` - prevents duplicate entries for the same book. The previous constraint included `book_type`, but since the unified model uses one row per book, the constraint is effectively `(author_id, title)`.
 
 ### downloads
 
@@ -133,6 +140,13 @@ Current migrations:
 6. `ALTER TABLE downloads ADD COLUMN error_detail TEXT`
 7. `ALTER TABLE books ADD COLUMN last_grab_reason TEXT`
 8. `ALTER TABLE authors ADD COLUMN seed_source TEXT`
+9. `ALTER TABLE books ADD COLUMN want_ebook INTEGER DEFAULT 0`
+10. `ALTER TABLE books ADD COLUMN want_audiobook INTEGER DEFAULT 0`
+11. `ALTER TABLE books ADD COLUMN have_ebook INTEGER DEFAULT 0`
+12. `ALTER TABLE books ADD COLUMN have_audiobook INTEGER DEFAULT 0`
+13. `ALTER TABLE books ADD COLUMN ebook_path TEXT`
+14. `ALTER TABLE books ADD COLUMN audiobook_path TEXT`
+15. `ALTER TABLE books ADD COLUMN subjects TEXT`
 
 ## Backup
 

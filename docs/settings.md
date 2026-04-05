@@ -6,8 +6,9 @@ Complete reference for every setting key stored in the `settings` table. All val
 
 | Key | Default | Valid values | Description |
 |---|---|---|---|
-| `ebook_path` | `""` (empty) | Absolute directory path | Directory where ebooks are organized into `Author/Title/ebook/` subfolders. |
-| `audiobook_path` | `""` (empty) | Absolute directory path | Directory where audiobooks are organized into `Author/Title/audiobook/` subfolders. |
+| `ebook_path` | `""` (empty) | Absolute directory path | Directory where ebooks are organized. Folder layout depends on the `folder_structure` setting. |
+| `audiobook_path` | `""` (empty) | Absolute directory path | Directory where audiobooks are organized. Folder layout depends on the `folder_structure` setting. |
+| `folder_structure` | `"author_title"` | `"author_title"`, `"author_title_format"`, `"author_only"` | Controls how downloaded files are organized on disk. `author_title` = Author/Title/files (default), `author_title_format` = Author/Title (Format)/files, `author_only` = Author/files. |
 | `language` | `"english"` | `"any"`, `"english"`, or comma-separated language names | Controls which languages are accepted during import and search result filtering. |
 | `want_format` | `"both"` | `"both"`, `"ebook"`, `"audiobook"` | When wanting a book, whether to also want the sibling format automatically. |
 | `preferred_ebook_format` | `"epub"` | `"epub"`, `"mobi"`, `"pdf"`, `"any"` | Preferred ebook format. Matching results receive a +15 scoring bonus. |
@@ -65,4 +66,4 @@ Both must be set for notifications to fire. If either is empty, notifications ar
 
 | Key | Default | Valid values | Description |
 |---|---|---|---|
-| `folder_structure_migrated` | `""` (empty) | `"1"` | Set to `1` after the one-time library reorganization to `Author/Title/format/` structure. Do not modify manually. |
+| `folder_structure_migrated` | `""` (empty) | `"1"` | Set to `1` after the one-time library reorganization. Do not modify manually. |

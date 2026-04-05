@@ -39,7 +39,7 @@ Returns aggregate counts for the library.
 ### List books
 
 ```
-GET /api/books?status=STATUS&type=TYPE&q=QUERY&page=PAGE&per_page=PER_PAGE&category=CATEGORY&exclude_status=STATUS
+GET /api/books?status=STATUS&type=TYPE&q=QUERY&page=PAGE&per_page=PER_PAGE&category=CATEGORY&exclude_status=STATUS&subject=SUBJECT&decade=DECADE
 ```
 
 Returns a paginated list of books.
@@ -55,6 +55,8 @@ Returns a paginated list of books.
 | `page` | integer | Page number (default: 1) |
 | `per_page` | integer | Results per page (default: 100) |
 | `category` | string | Filter by `novel` (author_count = 1) or `anthology` (author_count > 1) |
+| `subject` | string | Filter by subject/genre (populated from Open Library metadata enrichment) |
+| `decade` | string | Filter by publication decade (for example, `1980`) |
 
 **Response:**
 
@@ -210,6 +212,14 @@ POST /api/author/AUTHOR_ID/toggle
 
 Toggles the author's monitored flag between 1 and 0.
 
+### Refresh author books
+
+```
+POST /api/author/AUTHOR_ID/refresh
+```
+
+Re-fetches the author's works list from Open Library to discover new titles that may have been added since the author was originally seeded. New books are added with status "missing."
+
 ### Delete author
 
 ```
@@ -248,7 +258,15 @@ The `book_type` field accepts `ebook`, `audiobook`, or `both` (creates both entr
 POST /api/book/BOOK_ID/want
 ```
 
-Sets book status to "wanted." If the "When Wanting a Book" setting is "both," also wants the sibling format.
+**Request body (optional):**
+
+```json
+{
+  "format": "ebook"
+}
+```
+
+Sets the book as wanted. The `format` field accepts `"ebook"`, `"audiobook"`, or `"both"` to control which format flags are set.
 
 ### Unwant a book
 
@@ -256,7 +274,23 @@ Sets book status to "wanted." If the "When Wanting a Book" setting is "both," al
 POST /api/book/BOOK_ID/unwant
 ```
 
-Sets book status back to "missing."
+**Request body (optional):**
+
+```json
+{
+  "format": "audiobook"
+}
+```
+
+Sets the book back to unwanted. The `format` field accepts `"ebook"`, `"audiobook"`, or `"both"` to control which format flags are cleared.
+
+### Toggle book monitoring
+
+```
+POST /api/book/BOOK_ID/toggle-monitor
+```
+
+Toggles the book's `monitored` flag between 1 and 0. Unmonitored books are skipped during background search regardless of their status.
 
 ### Want all books by author
 
@@ -283,31 +317,43 @@ POST /api/book/BOOK_ID/delete
 
 Deletes the book. If the author has no remaining books, the author is also deleted.
 
-## Audiobooks
+## Import and enrichment
 
-### Check audiobooks for author
+### Import books from disk
 
 ```
-POST /api/author/add-audiobooks
+POST /api/import
 ```
 
-**Request body:**
+Discovers books from existing Author/Title folder structure in the configured library paths. Matched files are imported into the library with their format flags set based on file type.
+
+### Start metadata enrichment
+
+```
+POST /api/enrich
+```
+
+Starts a background job that fetches year, cover art, and subjects from Open Library for books missing metadata. Progress can be monitored through the activity feed.
+
+### Get genres
+
+```
+GET /api/genres
+```
+
+Returns the top genres/subjects across the library, populated from Open Library metadata enrichment. Used for the genre filtering UI.
+
+**Response:**
 
 ```json
 {
-  "author_id": 5
+  "genres": [
+    {"name": "Fiction", "count": 450},
+    {"name": "Science Fiction", "count": 120},
+    {"name": "Historical Fiction", "count": 85}
+  ]
 }
 ```
-
-Checks Open Library and Audible for audiobook editions of the author's ebooks. Runs in a background thread.
-
-### Check all audiobooks
-
-```
-POST /api/audiobooks/check-all
-```
-
-Checks audiobook availability for all authors that have ebooks but no audiobook entries. Runs in the background.
 
 ## Search
 

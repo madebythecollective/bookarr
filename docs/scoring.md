@@ -52,7 +52,7 @@ Calculated as a proportion of matching words:
 +60 x (matched_title_words / total_title_words)
 ```
 
-Each word from the book title (longer than 2 characters, lowercased) is checked against the result title. The score scales linearly with the fraction of words matched.
+Each significant word from the book title (longer than 2 characters, lowercased, excluding stop words like "the", "a", "of", "and", "in") is checked against the result title. The score scales linearly with the fraction of words matched.
 
 - Example: Book title "Blood Meridian" (2 significant words). Both found in result = +60. One found = +30.
 
@@ -83,6 +83,15 @@ Applies when the book type is "audiobook":
 |---|---|
 | File size exceeds the configured maximum (ebook: 200 MB, audiobook: 5000 MB) | -50 |
 | File size is less than 0.1 MB | -10 |
+
+### Weak match rejection (score = -1)
+
+Results that fail to meet a minimum relevance bar are hard-rejected:
+
+- **50% title word requirement.** At least half of the title's significant words (excluding stop words like "the", "a", "of", "and", "in") must appear in the result. A result matching only 1 of 4 title words is rejected.
+- **Single-word title match without author.** If only one title word matches and no part of the author's name is found, the result is rejected. This prevents grabbing wrong files when a common word (like "the" or a single noun) happens to appear in an unrelated release.
+
+These checks run after the individual scoring factors are calculated but before the final score is compared to the threshold.
 
 ### Collection and pack penalty
 

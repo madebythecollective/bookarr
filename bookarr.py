@@ -1391,16 +1391,18 @@ def import_library_from_disk():
 
                     # Find the best media file, validating filename matches title or author
                     best_file = None
-                    title_words = set(re.findall(r'[a-z]{3,}', title.lower()))
-                    author_words = set(re.findall(r'[a-z]{3,}', author_name.lower()))
+                    stop_words = {"the","and","for","from","with","that","this","into","over","about"}
+                    title_words = set(re.findall(r'[a-z]{4,}', title.lower())) - stop_words
+                    author_last = author_name.lower().split()[-1] if author_name else ""
                     for f in files:
                         ext = os.path.splitext(f)[1].lower()
                         if ext not in ALL_MEDIA_EXTENSIONS or not os.path.isfile(f):
                             continue
-                        fname_words = set(re.findall(r'[a-z]{3,}',
+                        fname_words = set(re.findall(r'[a-z]{4,}',
                                           os.path.splitext(os.path.basename(f))[0].lower()))
-                        overlap = (title_words & fname_words) | (author_words & fname_words)
-                        if overlap or not title_words:
+                        author_match = len(author_last) >= 3 and author_last in os.path.basename(f).lower()
+                        title_overlap = len(title_words & fname_words)
+                        if author_match or title_overlap >= 2 or (title_overlap >= 1 and len(title_words) <= 1):
                             best_file = f
                             break
 

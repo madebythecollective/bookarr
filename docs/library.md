@@ -14,8 +14,7 @@ When you add an author, Bookarr:
 
 1. Fetches up to 200 works from Open Library.
 2. Filters out non-English titles (based on your language setting), junk entries, and duplicates.
-3. Adds each work as an ebook with status "missing."
-4. Checks Open Library and Audible for audiobook editions in the background. Found audiobooks are added automatically.
+3. Adds each work as a book with status "missing." Format flags (`want_ebook`, `want_audiobook`) are unset until you choose which formats you want.
 
 ### Seed from curated lists
 
@@ -44,22 +43,31 @@ Seeding runs in the background. Duplicate authors are skipped.
 
 Click the trending button on the Discover page to fetch and seed currently trending authors from Open Library.
 
+## Import from disk
+
+If you already have books organized in an Author/Title folder structure, Bookarr can discover and import them:
+
+1. Set your **eBook Save Path** and/or **Audiobook Save Path** in Settings.
+2. Navigate to **Library** and click **Import from Disk** (or call `POST /api/import`).
+3. Bookarr walks the configured paths, matches Author/Title folders to existing library entries, and creates new entries for unrecognized books.
+4. Format flags (`have_ebook`, `have_audiobook`) are set based on file types found.
+
 ## Adding individual books
 
 1. Navigate to **Library**.
 2. Click **+ Add Book**.
 3. Search by title, author, or ISBN.
-4. Select a result and choose to add as ebook, audiobook, or both.
+4. Select a result to add it to your library. Use the format toggles to choose ebook, audiobook, or both.
 
 ## Wanting books
 
 A book with status "missing" is in your library but Bookarr is not actively searching for it. To start searching:
 
-- **Single book.** Open the book detail view and click **Want**.
-- **All books by an author.** Open the author's page and click **Want All**. Optionally filter by ebook or audiobook.
+- **Single book.** Open the book detail view and use the format toggles to want the ebook, audiobook, or both independently.
+- **All books by an author.** Open the author's page and click **Want All**.
 - **Filtered want.** Use the Library filters to find specific books, then want them individually.
 
-When you want a book and the "When Wanting a Book" setting is set to "Both," the sibling format (ebook or audiobook) is also marked as wanted.
+Each book has independent format toggles: `want_ebook` and `want_audiobook`. You can want one format without the other.
 
 ## Book statuses
 
@@ -70,14 +78,33 @@ When you want a book and the "When Wanting a Book" setting is set to "Both," the
 | **Downloading** | A release has been sent to your download client. |
 | **Downloaded** | The file has been downloaded and organized in your library. |
 
+## Library views
+
+The Library page supports two views:
+
+- **Books view.** The default grid/list of all books with filtering by status, genre, and search.
+- **Authors view.** Toggle to see authors with aggregate counts. Click an author to view their books with prev/next navigation between authors.
+
+### Genre filtering
+
+Books can be filtered by subject/genre. Subjects are populated from Open Library during metadata enrichment. Use the genre dropdown on the Library page to filter.
+
 ## Monitoring
 
 Authors and books can be individually monitored or unmonitored.
 
 - **Unmonitored authors** are skipped entirely during background search, even if they have wanted books.
-- **Unmonitored books** are skipped during background search regardless of their status.
+- **Unmonitored books** are skipped during background search regardless of their status. Toggle per-book monitoring from the book detail view.
 
-Toggle monitoring from the author's page in Discover.
+Toggle author monitoring from the author's page. Toggle book monitoring from the book detail view or via `POST /api/book/{id}/toggle-monitor`.
+
+## Metadata enrichment
+
+Click **Enrich Metadata** (or call `POST /api/enrich`) to start a background job that fetches year, cover art, and subjects from Open Library for books missing this data. Enriched subjects power the genre filtering feature.
+
+## Refresh author books
+
+From an author's detail page, click **Refresh Books** (or call `POST /api/author/{id}/refresh`) to re-fetch the author's works list from Open Library. This discovers new titles that were published or added to Open Library since the author was originally seeded.
 
 ## Scanning source folders
 
@@ -99,29 +126,14 @@ Add additional folders (Downloads directory, NAS shares, external drives) throug
 
 1. Bookarr walks each source folder recursively, skipping hidden files and directories.
 2. For each file with a recognized extension, it normalizes the filename and compares the first 30 characters against book titles in the database.
-3. Matched files are moved to the organized folder structure: `Author Name/Book Title/ebook/` or `Author Name/Book Title/audiobook/`.
-4. The book's status is updated to "downloaded" and its file path is recorded.
+3. Matched files are moved to the organized folder structure based on the configured folder structure preset. Files are routed by extension: ebook files to the ebook path, audio files to the audiobook path.
+4. The book's format flags (`have_ebook`/`have_audiobook`) and paths are updated accordingly.
 
 ### Recognized file extensions
 
 **Ebooks:** `.epub`, `.mobi`, `.azw`, `.azw3`, `.pdf`, `.djvu`, `.fb2`, `.cbz`, `.cbr`
 
 **Audiobooks:** `.mp3`, `.m4b`, `.m4a`, `.ogg`, `.flac`
-
-## Audiobook discovery
-
-Bookarr checks whether audiobook editions exist before adding them to your library. This prevents your wanted list from filling with books that have no audiobook available.
-
-The check queries two sources:
-
-1. **Open Library.** Looks at edition data for format keywords: "audio", "audible", "cd audiobook", "mp3".
-2. **Audible catalog API.** Searches by title and author name. If results are found, the audiobook exists.
-
-### Bulk audiobook check
-
-Click **Find Audiobooks** on the Discover page to check all authors for audiobook editions. This runs in the background and can take several minutes for large libraries.
-
-Bookarr also automatically checks for audiobooks on startup for any authors that are missing audiobook data.
 
 ## Deleting content
 

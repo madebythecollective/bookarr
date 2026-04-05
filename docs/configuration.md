@@ -70,7 +70,7 @@ Leave both fields empty to disable notifications.
 | **eBook Save Path** | Directory where downloaded ebooks are organized. Example: `/media/books` |
 | **Audiobook Save Path** | Directory where downloaded audiobooks are organized. Example: `/media/audiobooks` |
 
-Both paths use the folder structure: `Author Name/Book Title/ebook/` or `Author Name/Book Title/audiobook/`. See [Folder structure](folder-structure.md) for details.
+The default folder structure is `Author Name/Book Title/files`. You can change this in Settings under the Library tab. See [Folder structure](folder-structure.md) for all available presets.
 
 Use the **Browse** button to navigate your filesystem and select a directory.
 
@@ -94,11 +94,16 @@ Books in non-selected languages are filtered out during author seeding and searc
 | **Max eBook Size** | `200` MB | Reject ebook results larger than this. |
 | **Max Audiobook Size** | `5000` MB | Reject audiobook results larger than this. |
 
+## Folder structure
+
+| Setting | Options | Description |
+|---|---|---|
+| **Folder Structure** | Author/Title (default), Author/Title (Format), Author Only | Controls how downloaded files are organized on disk. See [Folder structure](folder-structure.md). |
+
 ## Format preferences
 
 | Setting | Options | Description |
 |---|---|---|
-| **When Wanting a Book** | Both, eBook only, Audiobook only | Controls whether wanting a book also wants the other format. |
 | **Preferred eBook Format** | EPUB, MOBI, PDF, Any | Matching formats receive a +15 scoring bonus. |
 
 ## Command-line options

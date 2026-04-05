@@ -24,9 +24,9 @@ For each book, the search engine:
    - Author + title + "audiobook" (searching all book categories)
    - Author last name + title
    - Author + title (searching all book categories)
-4. Scores each result. See [Search scoring](scoring.md).
+4. Scores each result. See [Search scoring](scoring.md). Results must meet the 50%+ title word match threshold or include the author's last name; weak single-word matches without author confirmation are hard-rejected.
 5. Filters out results with a score below the minimum threshold.
-6. If a qualifying result is found, sends it to the download client.
+6. If a qualifying result is found, sends it to the download client. On 500 errors, the frontend retries once automatically.
 7. Updates the book's `last_searched` timestamp and `last_result_count`.
 8. Waits 2 seconds before processing the next book.
 
@@ -92,8 +92,8 @@ Use the search bar in the Library page to search your configured indexers by any
 After a download completes successfully:
 
 1. Bookarr identifies the downloaded file in the download client's destination directory.
-2. The file is moved to: `{save_path}/{Author Name}/{Book Title}/{ebook|audiobook}/{filename}`
-3. The book's status is updated to "downloaded" and the file path is recorded.
+2. The file is routed by extension: ebook files to the ebook save path, audio files to the audiobook save path, organized according to the configured folder structure preset.
+3. The book's format flags (`have_ebook`/`have_audiobook`) and paths are updated. Status is set to "downloaded."
 
 ### Stalled downloads
 

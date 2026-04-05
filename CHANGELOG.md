@@ -4,6 +4,38 @@ All notable changes to Bookarr are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-04-04
+
+### Added
+
+- **Unified book model.** One entry per book with format toggles (`want_ebook`, `want_audiobook`, `have_ebook`, `have_audiobook`) replacing separate ebook/audiobook rows.
+- **Import from disk.** Discovers books from existing Author/Title folder structure when library paths are set.
+- **Metadata enrichment.** Background job fetches year, cover art, and subjects from Open Library.
+- **Configurable folder structure.** Choose Author/Title, Author/Title (Format), or Author Only in Settings.
+- **Library author view.** Toggle between Books and Authors views in the Library page.
+- **Genre filtering.** Filter library by subjects populated from Open Library metadata.
+- **Refresh author books.** Re-fetch works list from Open Library to find new titles.
+- **Per-book monitoring.** Toggle monitoring on individual books.
+- **Per-book format toggles.** Want/unwant ebook and audiobook independently per book.
+- **Author navigation.** Prev/next buttons when viewing author details.
+- **Error reporting.** UI errors show details with one-click GitHub issue creation.
+- **Settings tabs.** Settings page organized into Connections, Library, Search, Notifications tabs.
+- **`BOOKARR_DATA_DIR` environment variable.** Override data directory for Docker and custom deployments.
+- **API endpoints.** `/api/import`, `/api/enrich`, `/api/genres`, `/api/author/{id}/refresh`, `/api/book/{id}/toggle-monitor`.
+
+### Changed
+
+- **Search scoring tightened.** Requires 50%+ title word match or author last name. Rejects weak single-word matches that caused wrong file downloads.
+- **File routing by extension.** Ebook files always go to ebook path, audio files to audiobook path, regardless of database tag.
+- **Folder structure simplified.** Default is now Author/Title/files (no ebook/audiobook subdirectory).
+- **API retry logic.** Frontend retries once on 500 errors, backend retries SQLite connections 3 times on transient errors.
+
+### Removed
+
+- **Audiobook existence checker.** No longer queries Open Library/Audible to verify audiobook editions exist before adding. Users simply toggle which formats they want.
+- **Separate ebook/audiobook database entries.** Merged into unified model.
+- **Ebook/audiobook tabs in author detail.** Replaced with unified book list with inline format toggles.
+
 ## [0.2.0] - 2026-04-03
 
 ### Added
@@ -47,5 +79,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Service files.** macOS launchd plist and Linux systemd unit file for running as a background service.
 - **Install scripts.** Automated setup for macOS, Linux, and Windows.
 
+[0.3.0]: https://github.com/madebythecollective/bookarr/releases/tag/v0.3.0
 [0.2.0]: https://github.com/madebythecollective/bookarr/releases/tag/v0.2.0
 [0.1.0]: https://github.com/madebythecollective/bookarr/releases/tag/v0.1.0
