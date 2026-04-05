@@ -11,7 +11,6 @@ Usage:
 """
 
 import argparse
-import concurrent.futures
 import json
 import os
 import re
@@ -100,12 +99,19 @@ OL_AUTHOR_INFO = "https://openlibrary.org/authors/{}.json"
 # ---------------------------------------------------------------------------
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=15000")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+    for attempt in range(3):
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA busy_timeout=15000")
+            conn.execute("PRAGMA foreign_keys=ON")
+            return conn
+        except sqlite3.OperationalError:
+            if attempt < 2:
+                time.sleep(0.5)
+            else:
+                raise
 
 def init_db():
     conn = get_db()
@@ -206,6 +212,7 @@ def init_db():
         ("seed_time_limit", "0"),
         ("pushover_token", ""),
         ("pushover_user", ""),
+        ("folder_structure", "author_title"),
     ]:
         conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, val))
     # Migration: add columns if missing
@@ -218,6 +225,13 @@ def init_db():
         "ALTER TABLE downloads ADD COLUMN error_detail TEXT",
         "ALTER TABLE books ADD COLUMN last_grab_reason TEXT",
         "ALTER TABLE authors ADD COLUMN seed_source TEXT",
+        "ALTER TABLE books ADD COLUMN subjects TEXT",
+        "ALTER TABLE books ADD COLUMN want_ebook INTEGER DEFAULT 0",
+        "ALTER TABLE books ADD COLUMN want_audiobook INTEGER DEFAULT 0",
+        "ALTER TABLE books ADD COLUMN have_ebook INTEGER DEFAULT 0",
+        "ALTER TABLE books ADD COLUMN have_audiobook INTEGER DEFAULT 0",
+        "ALTER TABLE books ADD COLUMN ebook_path TEXT",
+        "ALTER TABLE books ADD COLUMN audiobook_path TEXT",
     ]:
         try:
             conn.execute(migration)
@@ -607,45 +621,6 @@ def is_english_title(title):
     return True
 
 # ---------------------------------------------------------------------------
-# Audiobook Verification (Open Library + Audible fallback)
-# ---------------------------------------------------------------------------
-
-def check_audiobook_exists(author_name, title, ol_key=None):
-    """Check if an audiobook exists via Open Library editions (primary) or Audible catalog (fallback)."""
-    # Primary: check Open Library editions for audiobook formats
-    if ol_key:
-        try:
-            url = f"https://openlibrary.org/works/{ol_key}/editions.json?limit=100"
-            req = urllib.request.Request(url)
-            req.add_header("User-Agent", "Bookarr/1.0 (book automation)")
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = json.loads(resp.read())
-                for edition in data.get("entries", []):
-                    fmt = (edition.get("physical_format") or "").lower()
-                    if any(kw in fmt for kw in ("audio", "audible", "cd audiobook", "mp3")):
-                        print(f"[Audiobook] OL hit: '{title}' has audiobook edition (format: {fmt})")
-                        return True
-        except Exception as e:
-            print(f"[Audiobook] OL error checking '{title}': {e}")
-
-    # Fallback: check Audible catalog API
-    try:
-        query = urllib.parse.quote(f"{title}")
-        author_q = urllib.parse.quote(f"{author_name}")
-        url = f"https://api.audible.com/1.0/catalog/products?title={query}&author={author_q}&num_results=1"
-        req = urllib.request.Request(url)
-        req.add_header("User-Agent", "Bookarr/1.0 (book automation)")
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read())
-            if data.get("total_results", 0) > 0:
-                print(f"[Audiobook] Audible hit: '{title}' by {author_name}")
-                return True
-    except Exception as e:
-        print(f"[Audiobook] Audible error checking '{title}': {e}")
-
-    return False
-
-# ---------------------------------------------------------------------------
 # Open Library API
 # ---------------------------------------------------------------------------
 
@@ -855,6 +830,29 @@ def _sanitize_path(name):
     return re.sub(r'[<>:"/\\|?*]', '', name).strip().rstrip('.')
 
 
+# Folder structure presets:
+#   "author_title"         -> Author/Title/files           (default)
+#   "author_title_format"  -> Author/Title (audiobook)/files
+#   "author_only"          -> Author/files
+FOLDER_STRUCTURES = {
+    "author_title":        "{author}/{title}",
+    "author_title_format": "{author}/{title} ({format})",
+    "author_only":         "{author}",
+}
+
+def build_dest_dir(root, author_name, title, book_type):
+    """Build the destination directory for a book based on the user's folder structure setting."""
+    structure = get_setting("folder_structure", "author_title")
+    template = FOLDER_STRUCTURES.get(structure, FOLDER_STRUCTURES["author_title"])
+    fmt_label = "audiobook" if book_type == "audiobook" else "ebook"
+    rel = template.format(
+        author=_sanitize_path(author_name),
+        title=_sanitize_path(title),
+        format=fmt_label,
+    )
+    return os.path.join(root, rel)
+
+
 def score_result(result, book_title, author_name, book_type="ebook"):
     """Score a search result for relevance to a specific book."""
     title_lower = result["title"].lower()
@@ -879,17 +877,32 @@ def score_result(result, book_title, author_name, book_type="ebook"):
         if not any(ok in title_lower for ok in ["audiobook", "narrated", "unabridged", "read by"]):
             return -1  # Hard reject music
 
-    # Author name match
+    # Author name match — require last name (most distinctive part)
     author_parts = author_lower.split()
-    for part in author_parts:
-        if len(part) > 2 and part in title_lower:
-            score += 20
+    author_last = author_parts[-1] if author_parts else ""
+    author_matched = False
+    if author_last and len(author_last) > 2 and author_last in title_lower:
+        score += 25
+        author_matched = True
+    # Bonus for first name too
+    if len(author_parts) > 1 and len(author_parts[0]) > 2 and author_parts[0] in title_lower:
+        score += 15
 
-    # Book title match
-    book_words = [w for w in book_lower.split() if len(w) > 2]
+    # Book title match — require significant words (4+ chars to skip "the", "and", "for")
+    stop_words = {"the", "and", "for", "from", "with", "that", "this", "into", "over", "about"}
+    book_words = [w for w in re.findall(r'[a-z]+', book_lower) if len(w) >= 4 and w not in stop_words]
+    if not book_words:
+        # Short titles (1-2 short words) — use all words 3+ chars
+        book_words = [w for w in re.findall(r'[a-z]+', book_lower) if len(w) >= 3 and w not in stop_words]
     matched_words = sum(1 for w in book_words if w in title_lower)
+    title_match_pct = matched_words / max(len(book_words), 1)
+
     if book_words:
-        score += int(60 * matched_words / len(book_words))
+        score += int(60 * title_match_pct)
+
+    # Hard reject: if title match is weak AND author doesn't match, this is almost certainly wrong
+    if title_match_pct < 0.5 and not author_matched:
+        return -1
 
     # Format preferences
     if book_type == "ebook":
@@ -1281,22 +1294,15 @@ def scan_library():
                 # Try to match by filename — prefer matching the actual file type
                 name_clean = os.path.splitext(fname)[0].lower()
                 row = conn.execute(
-                    "SELECT b.id, b.book_type, a.name as author_name, b.title "
+                    "SELECT b.id, a.name as author_name, b.title "
                     "FROM books b JOIN authors a ON b.author_id = a.id "
-                    "WHERE b.status != 'downloaded' AND lower(b.title) LIKE ? "
-                    "ORDER BY CASE WHEN b.book_type = ? THEN 0 ELSE 1 END",
-                    (f"%{name_clean[:30]}%", actual_type)
+                    "WHERE lower(b.title) LIKE ? ",
+                    (f"%{name_clean[:30]}%",)
                 ).fetchone()
                 if row:
                     # Route based on actual file extension, not database tag
                     root = get_audiobook_path() if actual_type == "audiobook" else get_ebook_path()
-                    fmt_folder = "audiobook" if actual_type == "audiobook" else "ebook"
-                    organized_dir = os.path.join(
-                        root,
-                        _sanitize_path(row["author_name"]),
-                        _sanitize_path(row["title"]),
-                        fmt_folder
-                    )
+                    organized_dir = build_dest_dir(root, row["author_name"], row["title"], actual_type)
                     # Only move if not already in organized structure
                     if not fpath.startswith(organized_dir):
                         try:
@@ -1308,12 +1314,239 @@ def scan_library():
                         except Exception as e:
                             print(f"[Scan] Error moving {fname}: {e}")
 
-                    conn.execute("UPDATE books SET status='downloaded', path=? WHERE id=?",
-                                 (fpath, row["id"]))
+                    if actual_type == "audiobook":
+                        conn.execute("UPDATE books SET have_audiobook=1, audiobook_path=?, status='downloaded' WHERE id=?",
+                                     (fpath, row["id"]))
+                    else:
+                        conn.execute("UPDATE books SET have_ebook=1, ebook_path=?, status='downloaded' WHERE id=?",
+                                     (fpath, row["id"]))
                     matched += 1
     conn.commit()
     conn.close()
     return matched
+
+
+def import_library_from_disk():
+    """Discover books from the organized folder structure on disk.
+    Walks {root}/{Author Name}/{Book Title}/{ebook|audiobook}/ and creates
+    author + book entries for anything not already in the database.
+    Called automatically when ebook_path or audiobook_path is set.
+    """
+    conn = get_db()
+    authors_added = 0
+    books_added = 0
+
+    paths_to_scan = []
+    ebook_path = get_ebook_path()
+    audiobook_path = get_audiobook_path()
+    if ebook_path and os.path.isdir(ebook_path):
+        paths_to_scan.append((ebook_path, "ebook"))
+    if audiobook_path and os.path.isdir(audiobook_path):
+        paths_to_scan.append((audiobook_path, "audiobook"))
+
+    for root_path, default_type in paths_to_scan:
+        # Level 1: Author directories
+        try:
+            author_dirs = sorted(os.listdir(root_path))
+        except OSError:
+            continue
+        for author_name in author_dirs:
+            if author_name.startswith('.'):
+                continue
+            author_dir = os.path.join(root_path, author_name)
+            if not os.path.isdir(author_dir):
+                continue
+
+            # Level 2: Book title directories
+            try:
+                title_dirs = os.listdir(author_dir)
+            except OSError:
+                continue
+            for title in title_dirs:
+                if title.startswith('.'):
+                    continue
+                title_dir = os.path.join(author_dir, title)
+                if not os.path.isdir(title_dir):
+                    continue
+
+                # Level 3: Format directories (ebook/ or audiobook/) or files directly
+                for fmt_name in os.listdir(title_dir):
+                    fmt_dir = os.path.join(title_dir, fmt_name)
+
+                    # Determine book_type and find files
+                    if os.path.isdir(fmt_dir) and fmt_name in ("ebook", "audiobook"):
+                        book_type = fmt_name
+                        files = [os.path.join(fmt_dir, f) for f in os.listdir(fmt_dir)
+                                 if not f.startswith('.')]
+                    elif os.path.isfile(fmt_dir):
+                        # Files directly in title dir (not in ebook/audiobook subdir)
+                        ext = os.path.splitext(fmt_name)[1].lower()
+                        ft = _file_type_from_ext(ext)
+                        if not ft:
+                            continue
+                        book_type = ft
+                        files = [fmt_dir]
+                    else:
+                        continue
+
+                    # Find the best media file, validating filename matches title or author
+                    best_file = None
+                    title_words = set(re.findall(r'[a-z]{3,}', title.lower()))
+                    author_words = set(re.findall(r'[a-z]{3,}', author_name.lower()))
+                    for f in files:
+                        ext = os.path.splitext(f)[1].lower()
+                        if ext not in ALL_MEDIA_EXTENSIONS or not os.path.isfile(f):
+                            continue
+                        fname_words = set(re.findall(r'[a-z]{3,}',
+                                          os.path.splitext(os.path.basename(f))[0].lower()))
+                        overlap = (title_words & fname_words) | (author_words & fname_words)
+                        if overlap or not title_words:
+                            best_file = f
+                            break
+
+                    if not best_file:
+                        continue
+
+                    # Ensure author exists
+                    row = conn.execute("SELECT id FROM authors WHERE name = ?",
+                                       (author_name,)).fetchone()
+                    if row:
+                        author_id = row["id"]
+                    else:
+                        conn.execute(
+                            "INSERT INTO authors (name, seed_source) VALUES (?, 'import')",
+                            (author_name,))
+                        author_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+                        authors_added += 1
+
+                    # Ensure book exists (unified model: one row per title)
+                    existing = conn.execute(
+                        "SELECT id, status, have_ebook, have_audiobook FROM books "
+                        "WHERE author_id = ? AND title = ?",
+                        (author_id, title)).fetchone()
+
+                    if existing:
+                        # Update the appropriate have/path column
+                        if book_type == "audiobook":
+                            conn.execute(
+                                "UPDATE books SET have_audiobook=1, audiobook_path=?, status='downloaded' WHERE id=?",
+                                (best_file, existing["id"]))
+                        else:
+                            conn.execute(
+                                "UPDATE books SET have_ebook=1, ebook_path=?, status='downloaded' WHERE id=?",
+                                (best_file, existing["id"]))
+                    else:
+                        have_ebook = 1 if book_type == "ebook" else 0
+                        have_audiobook = 1 if book_type == "audiobook" else 0
+                        ebook_path = best_file if book_type == "ebook" else None
+                        audiobook_path = best_file if book_type == "audiobook" else None
+                        conn.execute(
+                            "INSERT INTO books "
+                            "(author_id, title, status, book_type, "
+                            "have_ebook, have_audiobook, ebook_path, audiobook_path) "
+                            "VALUES (?, ?, 'downloaded', 'book', ?, ?, ?, ?)",
+                            (author_id, title, have_ebook, have_audiobook,
+                             ebook_path, audiobook_path))
+                        books_added += 1
+
+        if (authors_added + books_added) % 100 == 0 and (authors_added + books_added) > 0:
+            conn.commit()
+
+    conn.commit()
+    conn.close()
+    print(f"[Import] Discovered {authors_added} authors and {books_added} books from disk")
+    # Auto-enrich metadata after import
+    threading.Thread(target=enrich_metadata, daemon=True).start()
+    return {"authors_added": authors_added, "books_added": books_added}
+
+
+def enrich_metadata():
+    """Background job: look up books on Open Library and fill in year, cover, OL key, subjects.
+    Processes books missing metadata in batches, respecting rate limits."""
+    conn = get_db()
+    # Find books missing OL metadata (no ol_key means never looked up)
+    books = conn.execute("""
+        SELECT b.id, b.title, b.book_type, a.name as author_name
+        FROM books b JOIN authors a ON b.author_id = a.id
+        WHERE (b.ol_key IS NULL OR b.ol_key = '')
+        ORDER BY b.status DESC, b.id
+        LIMIT 2000
+    """).fetchall()
+    conn.close()
+
+    if not books:
+        print("[Enrich] No books need metadata enrichment")
+        return
+
+    print(f"[Enrich] Enriching metadata for {len(books)} books...")
+    enriched = 0
+    errors = 0
+
+    for i, book in enumerate(books):
+        try:
+            # Search Open Library by title + author
+            query = f"{book['title']} {book['author_name']}"
+            params = urllib.parse.urlencode({
+                "q": query, "limit": 3, "fields": "key,title,first_publish_year,cover_i,subject,author_name"
+            })
+            url = f"https://openlibrary.org/search.json?{params}"
+            req = urllib.request.Request(url, headers={"User-Agent": "Bookarr/0.2"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read())
+
+            docs = data.get("docs", [])
+            if not docs:
+                time.sleep(0.3)
+                continue
+
+            # Pick the best match — prefer exact title match
+            best = docs[0]
+            title_lower = book["title"].lower()
+            for doc in docs:
+                if doc.get("title", "").lower() == title_lower:
+                    best = doc
+                    break
+
+            ol_key = best.get("key", "").replace("/works/", "")
+            year = best.get("first_publish_year")
+            cover_id = best.get("cover_i")
+            subjects = best.get("subject", [])
+
+            # Normalize subjects: take top 5, lowercase
+            if subjects:
+                subjects = [s.strip() for s in subjects[:5]]
+                subjects_str = ",".join(subjects)
+            else:
+                subjects_str = ""
+
+            # Update the book
+            conn2 = get_db()
+            conn2.execute("""
+                UPDATE books SET
+                    ol_key = CASE WHEN ol_key IS NULL OR ol_key = '' THEN ? ELSE ol_key END,
+                    year = CASE WHEN year IS NULL OR year = 0 THEN ? ELSE year END,
+                    cover_id = CASE WHEN cover_id IS NULL OR cover_id = 0 THEN ? ELSE cover_id END,
+                    subjects = CASE WHEN subjects IS NULL OR subjects = '' THEN ? ELSE subjects END
+                WHERE id = ?
+            """, (ol_key, year, cover_id, subjects_str, book["id"]))
+            conn2.commit()
+            conn2.close()
+            enriched += 1
+
+            if enriched <= 5 or enriched % 50 == 0:
+                print(f"[Enrich] [{enriched}/{len(books)}] {book['author_name']} - {book['title']}"
+                      f" -> year={year}, subjects={len(subjects)}")
+
+            # Rate limit: ~2 requests per second
+            time.sleep(0.5)
+
+        except Exception as e:
+            errors += 1
+            if errors <= 5:
+                print(f"[Enrich] Error on '{book['title']}': {e}")
+            time.sleep(1)
+
+    print(f"[Enrich] Done: {enriched} enriched, {errors} errors out of {len(books)} books")
 
 
 def reorganize_library():
@@ -1332,13 +1565,7 @@ def reorganize_library():
             continue
 
         root = get_audiobook_path() if book["book_type"] == "audiobook" else get_ebook_path()
-        fmt_folder = "audiobook" if book["book_type"] == "audiobook" else "ebook"
-        organized_dir = os.path.join(
-            root,
-            _sanitize_path(book["author_name"]),
-            _sanitize_path(book["title"]),
-            fmt_folder
-        )
+        organized_dir = build_dest_dir(root, book["author_name"], book["title"], book["book_type"])
 
         # Skip if already in correct structure
         if old_path.startswith(organized_dir):
@@ -1475,11 +1702,16 @@ class SearchEngine:
                             file_size = candidates[0][2]
 
                 # Post-processing: organize the file
-                final_path = self._post_process(
+                final_path, actual_type = self._post_process(
                     file_path, dl["book_type"], dl["author_name"], dl["title"])
 
-                conn.execute("UPDATE books SET status='downloaded', path=? WHERE id=?",
-                             (final_path or file_path, dl["book_id"]))
+                dest = final_path or file_path
+                if actual_type == "audiobook":
+                    conn.execute("UPDATE books SET have_audiobook=1, audiobook_path=?, status='downloaded' WHERE id=?",
+                                 (dest, dl["book_id"]))
+                else:
+                    conn.execute("UPDATE books SET have_ebook=1, ebook_path=?, status='downloaded' WHERE id=?",
+                                 (dest, dl["book_id"]))
                 conn.execute("""UPDATE downloads SET status='completed', completed_at=datetime('now'),
                                 size_bytes=CASE WHEN size_bytes IS NULL OR size_bytes=0 THEN ? ELSE size_bytes END
                                 WHERE id=?""",
@@ -1610,11 +1842,16 @@ class SearchEngine:
                     if not file_size:
                         file_size = os.path.getsize(content_path)
 
-                final_path = self._post_process(
+                final_path, actual_type = self._post_process(
                     file_path, dl["book_type"], dl["author_name"], dl["title"])
 
-                conn.execute("UPDATE books SET status='downloaded', path=? WHERE id=?",
-                             (final_path or file_path, dl["book_id"]))
+                dest = final_path or file_path
+                if actual_type == "audiobook":
+                    conn.execute("UPDATE books SET have_audiobook=1, audiobook_path=?, status='downloaded' WHERE id=?",
+                                 (dest, dl["book_id"]))
+                else:
+                    conn.execute("UPDATE books SET have_ebook=1, ebook_path=?, status='downloaded' WHERE id=?",
+                                 (dest, dl["book_id"]))
                 conn.execute("""UPDATE downloads SET status='completed', completed_at=datetime('now'),
                                 size_bytes=CASE WHEN size_bytes IS NULL OR size_bytes=0 THEN ? ELSE size_bytes END
                                 WHERE id=?""",
@@ -1714,9 +1951,10 @@ class SearchEngine:
         """Move downloaded files to the organized library folder.
         Structure: {root}/{Author Name}/{Book Title}/{ebook|audiobook}/{filename}
         Routes based on actual file extension, not just database book_type.
+        Returns (dest_path, actual_type) tuple so callers can update the correct format columns.
         """
         if not file_path or not os.path.isfile(file_path):
-            return file_path
+            return file_path, book_type
 
         try:
             # Determine actual type from file extension — this overrides the DB tag
@@ -1725,44 +1963,29 @@ class SearchEngine:
             if actual_type != book_type:
                 print(f"[Post] Type mismatch: DB says {book_type} but file is {ext} ({actual_type}) — routing to {actual_type} path")
             root = get_audiobook_path() if actual_type == "audiobook" else get_ebook_path()
-            fmt_folder = "audiobook" if actual_type == "audiobook" else "ebook"
-            dest_dir = os.path.join(
-                root,
-                _sanitize_path(author_name),
-                _sanitize_path(title),
-                fmt_folder
-            )
+            dest_dir = build_dest_dir(root, author_name, title, actual_type)
             os.makedirs(dest_dir, exist_ok=True)
             dest = os.path.join(dest_dir, os.path.basename(file_path))
             shutil.move(file_path, dest)
-            print(f"[Post] Moved {book_type} to {dest}")
-            return dest
+            print(f"[Post] Moved {actual_type} to {dest}")
+            return dest, actual_type
 
         except Exception as e:
             print(f"[Post] Error processing {file_path}: {e}")
-        return file_path
+        return file_path, book_type
 
     def _search_wanted(self):
         conn = get_db()
-        # Get wanted books with their author names
-        # Prioritize audiobooks: grab 25 audiobooks + 25 ebooks per batch
-        wanted_audio = conn.execute("""
-            SELECT b.id, b.title, b.year, b.book_type, a.name as author_name
+        # Get books that need at least one format, unified query
+        wanted = conn.execute("""
+            SELECT b.id, b.title, b.year, b.want_ebook, b.want_audiobook,
+                   b.have_ebook, b.have_audiobook, a.name as author_name
             FROM books b JOIN authors a ON b.author_id = a.id
-            WHERE b.status = 'wanted' AND b.monitored = 1 AND a.monitored = 1
-              AND b.book_type = 'audiobook'
+            WHERE ((b.want_ebook=1 AND b.have_ebook=0) OR (b.want_audiobook=1 AND b.have_audiobook=0))
+              AND b.monitored = 1 AND a.monitored = 1
             ORDER BY b.last_searched ASC NULLS FIRST, b.added_at ASC
-            LIMIT 25
+            LIMIT 50
         """).fetchall()
-        wanted_ebook = conn.execute("""
-            SELECT b.id, b.title, b.year, b.book_type, a.name as author_name
-            FROM books b JOIN authors a ON b.author_id = a.id
-            WHERE b.status = 'wanted' AND b.monitored = 1 AND a.monitored = 1
-              AND b.book_type = 'ebook'
-            ORDER BY b.last_searched ASC NULLS FIRST, b.added_at ASC
-            LIMIT 25
-        """).fetchall()
-        wanted = list(wanted_audio) + list(wanted_ebook)
 
         if not wanted:
             self._search_active = False
@@ -1780,8 +2003,9 @@ class SearchEngine:
         self._search_started_at = datetime.now().isoformat()
 
         for book in wanted:
-            # Pick category based on book type
-            cat = CAT_AUDIOBOOK if book["book_type"] == "audiobook" else CAT_EBOOK
+            # Determine which formats to search for
+            need_ebook = book["want_ebook"] and not book["have_ebook"]
+            need_audiobook = book["want_audiobook"] and not book["have_audiobook"]
 
             # Update progress
             self._search_current = f"{book['author_name']} — {book['title']}"
@@ -1790,94 +2014,98 @@ class SearchEngine:
             conn.execute("UPDATE books SET last_searched=datetime('now') WHERE id=?", (book["id"],))
             conn.commit()
 
-            # Search by author + title
             query = f"{book['author_name']} {book['title']}"
-            results = search_all_indexers(query, cat)
 
-            if not results:
-                # Try just the title
-                results = search_all_indexers(book["title"], cat)
+            # Search for each needed format
+            for fmt, cat, book_type_label in [
+                (need_ebook, CAT_EBOOK, "ebook"),
+                (need_audiobook, CAT_AUDIOBOOK, "audiobook"),
+            ]:
+                if not fmt:
+                    continue
 
-            # For audiobooks, try additional search strategies
-            if not results and book["book_type"] == "audiobook":
-                # Try author + title + "audiobook"
-                results = search_all_indexers(f"{query} audiobook", CAT_BOOKS_ALL)
+                results = search_all_indexers(query, cat)
+
                 if not results:
-                    # Try with just author last name + title
-                    last_name = book["author_name"].split()[-1] if book["author_name"] else ""
-                    if last_name:
-                        results = search_all_indexers(f"{last_name} {book['title']}", cat)
+                    results = search_all_indexers(book["title"], cat)
+
+                # For audiobooks, try additional search strategies
+                if not results and book_type_label == "audiobook":
+                    results = search_all_indexers(f"{query} audiobook", CAT_BOOKS_ALL)
+                    if not results:
+                        last_name = book["author_name"].split()[-1] if book["author_name"] else ""
+                        if last_name:
+                            results = search_all_indexers(f"{last_name} {book['title']}", cat)
+                    if not results:
+                        results = search_all_indexers(query, CAT_BOOKS_ALL)
+
+                # Update result count
+                conn.execute("UPDATE books SET last_result_count=? WHERE id=?",
+                             (len(results), book["id"]))
+
                 if not results:
-                    # Try broader search in all book categories
-                    results = search_all_indexers(query, CAT_BOOKS_ALL)
+                    conn.execute("UPDATE books SET last_grab_reason=? WHERE id=?",
+                                 (f"no {book_type_label} results found from any indexer", book["id"]))
+                    conn.commit()
+                    continue
 
-            # Update result count
-            conn.execute("UPDATE books SET last_result_count=? WHERE id=?",
-                         (len(results), book["id"]))
+                # Score and pick best result
+                scored = [(score_result(r, book["title"], book["author_name"], book_type_label), r)
+                           for r in results]
+                scored = [(s, r) for s, r in scored if s >= 0]
+                scored.sort(key=lambda x: x[0], reverse=True)
 
-            if not results:
-                conn.execute("UPDATE books SET last_grab_reason=? WHERE id=?",
-                             ("no results found from any indexer", book["id"]))
-                conn.commit()
-                continue
+                if not scored:
+                    conn.execute("UPDATE books SET last_grab_reason=? WHERE id=?",
+                                 (f"all {len(results)} {book_type_label} results rejected by filters", book["id"]))
+                    continue
 
-            # Score and pick best result (filter out language rejects at -1)
-            scored = [(score_result(r, book["title"], book["author_name"], book["book_type"]), r)
-                       for r in results]
-            scored = [(s, r) for s, r in scored if s >= 0]  # Remove hard rejects
-            scored.sort(key=lambda x: x[0], reverse=True)
+                best_score, best = scored[0]
+                min_score = int(get_setting("min_score", "30"))
+                if best_score < min_score:
+                    conn.execute("UPDATE books SET last_grab_reason=? WHERE id=?",
+                                 (f"best {book_type_label} score {best_score} below minimum {min_score}", book["id"]))
+                    continue
 
-            if not scored:
-                conn.execute("UPDATE books SET last_grab_reason=? WHERE id=?",
-                             (f"all {len(results)} results rejected by filters", book["id"]))
-                continue
+                # Route to the right download client
+                dl_name = f"{book['author_name']} - {book['title']}"
+                dl_cat = "Audiobooks" if book_type_label == "audiobook" else "Books"
+                protocol = best.get("protocol", "usenet")
 
-            best_score, best = scored[0]
-            min_score = int(get_setting("min_score", "30"))
-            if best_score < min_score:
-                conn.execute("UPDATE books SET last_grab_reason=? WHERE id=?",
-                             (f"best score {best_score} below minimum {min_score}", book["id"]))
-                continue  # Too low confidence
+                if protocol == "torrent":
+                    torrent_cat = get_setting("torrent_category", "bookarr")
+                    torrent_result = send_to_torrent_client(best["link"], dl_name, torrent_cat)
+                    if torrent_result:
+                        torrent_hash = torrent_result if torrent_result != "pending" else None
+                        conn.execute("UPDATE books SET status='downloading' WHERE id=?", (book["id"],))
+                        conn.execute(
+                            "INSERT INTO downloads (book_id, nzb_name, indexer, size_bytes, status, download_client, torrent_hash) "
+                            "VALUES (?, ?, ?, ?, 'downloading', 'torrent', ?)",
+                            (book["id"], best["title"], f"indexer-{best['indexer_id']}", best["size"], torrent_hash)
+                        )
+                        grabbed += 1
+                        size_mb = best['size']/1024/1024 if best['size'] else 0
+                        seeders = best.get('seeders', '?')
+                        print(f"[Search] Grabbed {book_type_label} (torrent): {dl_name} ({size_mb:.0f}MB, {seeders} seeders)")
+                else:
+                    nzbget_id = send_to_nzbget(best["link"], dl_name, dl_cat)
+                    if nzbget_id and nzbget_id > 0:
+                        conn.execute("UPDATE books SET status='downloading' WHERE id=?", (book["id"],))
+                        conn.execute(
+                            "INSERT INTO downloads (book_id, nzbget_id, nzb_name, indexer, size_bytes, status, download_client) "
+                            "VALUES (?, ?, ?, ?, ?, 'downloading', 'nzbget')",
+                            (book["id"], nzbget_id, best["title"], f"indexer-{best['indexer_id']}", best["size"])
+                        )
+                        grabbed += 1
+                        size_mb = best['size']/1024/1024 if best['size'] else 0
+                        print(f"[Search] Grabbed {book_type_label} (usenet): {dl_name} ({size_mb:.0f}MB)")
 
-            # Route to the right download client based on protocol
-            dl_name = f"{book['author_name']} - {book['title']}"
-            dl_cat = "Audiobooks" if book["book_type"] == "audiobook" else "Books"
-            protocol = best.get("protocol", "usenet")
-
-            if protocol == "torrent":
-                torrent_cat = get_setting("torrent_category", "bookarr")
-                torrent_result = send_to_torrent_client(best["link"], dl_name, torrent_cat)
-                if torrent_result:
-                    torrent_hash = torrent_result if torrent_result != "pending" else None
-                    conn.execute("UPDATE books SET status='downloading' WHERE id=?", (book["id"],))
-                    conn.execute(
-                        "INSERT INTO downloads (book_id, nzb_name, indexer, size_bytes, status, download_client, torrent_hash) "
-                        "VALUES (?, ?, ?, ?, 'downloading', 'torrent', ?)",
-                        (book["id"], best["title"], f"indexer-{best['indexer_id']}", best["size"], torrent_hash)
-                    )
-                    grabbed += 1
-                    size_mb = best['size']/1024/1024 if best['size'] else 0
-                    seeders = best.get('seeders', '?')
-                    print(f"[Search] Grabbed (torrent): {dl_name} ({size_mb:.0f}MB, {seeders} seeders)")
-            else:
-                nzbget_id = send_to_nzbget(best["link"], dl_name, dl_cat)
-                if nzbget_id and nzbget_id > 0:
-                    conn.execute("UPDATE books SET status='downloading' WHERE id=?", (book["id"],))
-                    conn.execute(
-                        "INSERT INTO downloads (book_id, nzbget_id, nzb_name, indexer, size_bytes, status, download_client) "
-                        "VALUES (?, ?, ?, ?, ?, 'downloading', 'nzbget')",
-                        (book["id"], nzbget_id, best["title"], f"indexer-{best['indexer_id']}", best["size"])
-                    )
-                    grabbed += 1
-                    size_mb = best['size']/1024/1024 if best['size'] else 0
-                    print(f"[Search] Grabbed (usenet): {dl_name} ({size_mb:.0f}MB)")
+                # Be polite to indexers
+                time.sleep(2)
 
             # Update progress
             self._search_done += 1
             self._search_grabbed = grabbed
-
-            # Be polite to indexers
-            time.sleep(2)
 
         # Search complete
         self._search_active = False
@@ -1894,11 +2122,13 @@ class SearchEngine:
             conn2.close()
             print(f"[Search] Grabbed {grabbed} of {len(wanted)} wanted books")
 
-    def search_single_book(self, book_id):
-        """Search for a single book immediately. Used after wanting a book."""
+    def search_single_book(self, book_id, format_hint=None):
+        """Search for a single book immediately. Used after wanting a book.
+        format_hint can be 'ebook', 'audiobook', or None (search for all needed formats)."""
         conn = get_db()
         book = conn.execute("""
-            SELECT b.id, b.title, b.year, b.book_type, a.name as author_name
+            SELECT b.id, b.title, b.year, b.want_ebook, b.want_audiobook,
+                   b.have_ebook, b.have_audiobook, a.name as author_name
             FROM books b JOIN authors a ON b.author_id = a.id
             WHERE b.id = ? AND b.status = 'wanted'
         """, (book_id,)).fetchone()
@@ -1907,85 +2137,104 @@ class SearchEngine:
             return
 
         print(f"[Search] Immediate search for: {book['author_name']} — {book['title']}")
-        cat = CAT_AUDIOBOOK if book["book_type"] == "audiobook" else CAT_EBOOK
+
+        # Determine which formats to search for
+        formats_to_search = []
+        if format_hint == "ebook" or (format_hint is None and book["want_ebook"] and not book["have_ebook"]):
+            formats_to_search.append(("ebook", CAT_EBOOK))
+        if format_hint == "audiobook" or (format_hint is None and book["want_audiobook"] and not book["have_audiobook"]):
+            formats_to_search.append(("audiobook", CAT_AUDIOBOOK))
+
+        if not formats_to_search:
+            conn.close()
+            return
 
         # Mark as being searched
         conn.execute("UPDATE books SET last_searched=datetime('now') WHERE id=?", (book["id"],))
         conn.commit()
 
-        # Search by author + title
-        query = f"{book['author_name']} {book['title']}"
-        results = search_all_indexers(query, cat)
+        for book_type_label, cat in formats_to_search:
+            query = f"{book['author_name']} {book['title']}"
+            results = search_all_indexers(query, cat)
 
-        if not results:
-            results = search_all_indexers(book["title"], cat)
+            if not results:
+                results = search_all_indexers(book["title"], cat)
 
-        conn.execute("UPDATE books SET last_result_count=? WHERE id=?",
-                     (len(results), book["id"]))
+            # For audiobooks, try additional strategies
+            if not results and book_type_label == "audiobook":
+                results = search_all_indexers(f"{query} audiobook", CAT_BOOKS_ALL)
+                if not results:
+                    last_name = book["author_name"].split()[-1] if book["author_name"] else ""
+                    if last_name:
+                        results = search_all_indexers(f"{last_name} {book['title']}", cat)
+                if not results:
+                    results = search_all_indexers(query, CAT_BOOKS_ALL)
 
-        if not results:
-            conn.execute("UPDATE books SET last_grab_reason=? WHERE id=?",
-                         ("no results found from any indexer", book["id"]))
-            conn.commit()
-            conn.close()
-            print(f"[Search] No results for: {book['title']}")
-            return
+            conn.execute("UPDATE books SET last_result_count=? WHERE id=?",
+                         (len(results), book["id"]))
 
-        # Score and pick best result
-        scored = [(score_result(r, book["title"], book["author_name"], book["book_type"]), r)
-                   for r in results]
-        scored = [(s, r) for s, r in scored if s >= 0]
-        scored.sort(key=lambda x: x[0], reverse=True)
+            if not results:
+                conn.execute("UPDATE books SET last_grab_reason=? WHERE id=?",
+                             (f"no {book_type_label} results found from any indexer", book["id"]))
+                conn.commit()
+                print(f"[Search] No {book_type_label} results for: {book['title']}")
+                continue
 
-        if not scored:
-            conn.execute("UPDATE books SET last_grab_reason=? WHERE id=?",
-                         (f"all {len(results)} results rejected by filters", book["id"]))
-            conn.commit()
-            conn.close()
-            print(f"[Search] All results rejected for: {book['title']}")
-            return
+            # Score and pick best result
+            scored = [(score_result(r, book["title"], book["author_name"], book_type_label), r)
+                       for r in results]
+            scored = [(s, r) for s, r in scored if s >= 0]
+            scored.sort(key=lambda x: x[0], reverse=True)
 
-        best_score, best = scored[0]
-        min_score = int(get_setting("min_score", "30"))
-        if best_score < min_score:
-            conn.execute("UPDATE books SET last_grab_reason=? WHERE id=?",
-                         (f"best score {best_score} below minimum {min_score}", book["id"]))
-            conn.commit()
-            conn.close()
-            print(f"[Search] Best score {best_score} < {min_score} for: {book['title']}")
-            return
+            if not scored:
+                conn.execute("UPDATE books SET last_grab_reason=? WHERE id=?",
+                             (f"all {len(results)} {book_type_label} results rejected by filters", book["id"]))
+                conn.commit()
+                print(f"[Search] All {book_type_label} results rejected for: {book['title']}")
+                continue
 
-        # Route to the right download client
-        dl_name = f"{book['author_name']} - {book['title']}"
-        dl_cat = "Audiobooks" if book["book_type"] == "audiobook" else "Books"
-        protocol = best.get("protocol", "usenet")
+            best_score, best = scored[0]
+            min_score = int(get_setting("min_score", "30"))
+            if best_score < min_score:
+                conn.execute("UPDATE books SET last_grab_reason=? WHERE id=?",
+                             (f"best {book_type_label} score {best_score} below minimum {min_score}", book["id"]))
+                conn.commit()
+                print(f"[Search] Best {book_type_label} score {best_score} < {min_score} for: {book['title']}")
+                continue
 
-        if protocol == "torrent":
-            torrent_cat = get_setting("torrent_category", "bookarr")
-            torrent_result = send_to_torrent_client(best["link"], dl_name, torrent_cat)
-            if torrent_result:
-                torrent_hash = torrent_result if torrent_result != "pending" else None
-                conn.execute("UPDATE books SET status='downloading', last_grab_reason='grabbed' WHERE id=?",
-                             (book["id"],))
-                conn.execute(
-                    "INSERT INTO downloads (book_id, nzb_name, indexer, size_bytes, status, download_client, torrent_hash) "
-                    "VALUES (?, ?, ?, ?, 'downloading', 'torrent', ?)",
-                    (book["id"], best["title"], f"indexer-{best['indexer_id']}", best["size"], torrent_hash)
-                )
-                size_mb = best['size']/1024/1024 if best['size'] else 0
-                print(f"[Search] Grabbed (torrent): {dl_name} ({size_mb:.0f}MB)")
-        else:
-            nzbget_id = send_to_nzbget(best["link"], dl_name, dl_cat)
-            if nzbget_id and nzbget_id > 0:
-                conn.execute("UPDATE books SET status='downloading', last_grab_reason='grabbed' WHERE id=?",
-                             (book["id"],))
-                conn.execute(
-                    "INSERT INTO downloads (book_id, nzbget_id, nzb_name, indexer, size_bytes, status, download_client) "
-                    "VALUES (?, ?, ?, ?, ?, 'downloading', 'nzbget')",
-                    (book["id"], nzbget_id, best["title"], f"indexer-{best['indexer_id']}", best["size"])
-                )
-                size_mb = best['size']/1024/1024 if best['size'] else 0
-                print(f"[Search] Grabbed (usenet): {dl_name} ({size_mb:.0f}MB)")
+            # Route to the right download client
+            dl_name = f"{book['author_name']} - {book['title']}"
+            dl_cat = "Audiobooks" if book_type_label == "audiobook" else "Books"
+            protocol = best.get("protocol", "usenet")
+
+            if protocol == "torrent":
+                torrent_cat = get_setting("torrent_category", "bookarr")
+                torrent_result = send_to_torrent_client(best["link"], dl_name, torrent_cat)
+                if torrent_result:
+                    torrent_hash = torrent_result if torrent_result != "pending" else None
+                    conn.execute("UPDATE books SET status='downloading', last_grab_reason='grabbed' WHERE id=?",
+                                 (book["id"],))
+                    conn.execute(
+                        "INSERT INTO downloads (book_id, nzb_name, indexer, size_bytes, status, download_client, torrent_hash) "
+                        "VALUES (?, ?, ?, ?, 'downloading', 'torrent', ?)",
+                        (book["id"], best["title"], f"indexer-{best['indexer_id']}", best["size"], torrent_hash)
+                    )
+                    size_mb = best['size']/1024/1024 if best['size'] else 0
+                    print(f"[Search] Grabbed {book_type_label} (torrent): {dl_name} ({size_mb:.0f}MB)")
+            else:
+                nzbget_id = send_to_nzbget(best["link"], dl_name, dl_cat)
+                if nzbget_id and nzbget_id > 0:
+                    conn.execute("UPDATE books SET status='downloading', last_grab_reason='grabbed' WHERE id=?",
+                                 (book["id"],))
+                    conn.execute(
+                        "INSERT INTO downloads (book_id, nzbget_id, nzb_name, indexer, size_bytes, status, download_client) "
+                        "VALUES (?, ?, ?, ?, ?, 'downloading', 'nzbget')",
+                        (book["id"], nzbget_id, best["title"], f"indexer-{best['indexer_id']}", best["size"])
+                    )
+                    size_mb = best['size']/1024/1024 if best['size'] else 0
+                    print(f"[Search] Grabbed {book_type_label} (usenet): {dl_name} ({size_mb:.0f}MB)")
+
+            time.sleep(2)
 
         conn.commit()
         conn.close()
@@ -2171,6 +2420,8 @@ class BookarrHandler(BaseHTTPRequestHandler):
         # --- API endpoints ---
         if path == "/api/stats":
             self._api_stats()
+        elif path == "/api/genres":
+            self._api_genres()
         elif path == "/api/books":
             self._api_books_list(params)
         elif path == "/api/authors":
@@ -2255,25 +2506,31 @@ class BookarrHandler(BaseHTTPRequestHandler):
         elif path.startswith("/api/author/") and path.endswith("/toggle"):
             author_id = int(path.split("/")[3])
             self._api_toggle_author(author_id)
+        elif path.startswith("/api/author/") and path.endswith("/refresh"):
+            author_id = int(path.split("/")[3])
+            self._api_refresh_author(author_id)
         elif path.startswith("/api/author/") and path.endswith("/delete"):
             author_id = int(path.split("/")[3])
             self._api_delete_author(author_id)
         elif path.startswith("/api/book/") and path.endswith("/want"):
             book_id = int(path.split("/")[3])
-            self._api_want_book(book_id)
+            self._api_want_book(book_id, data)
         elif path.startswith("/api/book/") and path.endswith("/unwant"):
             book_id = int(path.split("/")[3])
-            self._api_unwant_book(book_id)
+            self._api_unwant_book(book_id, data)
+        elif path.startswith("/api/book/") and path.endswith("/toggle-monitor"):
+            book_id = int(path.split("/")[3])
+            conn = get_db()
+            conn.execute("UPDATE books SET monitored = CASE WHEN monitored=1 THEN 0 ELSE 1 END WHERE id=?", (book_id,))
+            conn.commit()
+            new_val = conn.execute("SELECT monitored FROM books WHERE id=?", (book_id,)).fetchone()
+            conn.close()
+            json_response(self, {"monitored": new_val["monitored"] if new_val else 0})
         elif path.startswith("/api/book/") and path.endswith("/delete"):
             book_id = int(path.split("/")[3])
             self._api_delete_book(book_id)
         elif path == "/api/book/want-all":
             self._api_want_all(data)
-        elif path == "/api/author/add-audiobooks":
-            self._api_add_audiobooks(data)
-        elif path == "/api/audiobooks/check-all":
-            threading.Thread(target=_check_all_audiobooks_background, daemon=True).start()
-            json_response(self, {"status": "started", "message": "Background audiobook check started for all authors"})
         elif path.startswith("/api/download/") and path.endswith("/retry"):
             download_id = int(path.split("/")[3])
             self._api_retry_download(download_id)
@@ -2283,6 +2540,12 @@ class BookarrHandler(BaseHTTPRequestHandler):
             self._api_search_now()
         elif path == "/api/scan":
             self._api_scan_library()
+        elif path == "/api/import":
+            threading.Thread(target=import_library_from_disk, daemon=True).start()
+            json_response(self, {"status": "import started"})
+        elif path == "/api/enrich":
+            threading.Thread(target=enrich_metadata, daemon=True).start()
+            json_response(self, {"status": "enrichment started"})
         elif path == "/api/settings":
             self._api_update_settings(data)
         elif path == "/api/seed":
@@ -2313,8 +2576,8 @@ class BookarrHandler(BaseHTTPRequestHandler):
             "authors": conn.execute("SELECT COUNT(*) c FROM authors").fetchone()["c"],
             "authors_monitored": conn.execute("SELECT COUNT(*) c FROM authors WHERE monitored=1").fetchone()["c"],
             "books": conn.execute("SELECT COUNT(*) c FROM books").fetchone()["c"],
-            "ebooks": conn.execute("SELECT COUNT(*) c FROM books WHERE book_type='ebook'").fetchone()["c"],
-            "audiobooks": conn.execute("SELECT COUNT(*) c FROM books WHERE book_type='audiobook'").fetchone()["c"],
+            "ebooks": conn.execute("SELECT COUNT(*) c FROM books WHERE have_ebook=1").fetchone()["c"],
+            "audiobooks": conn.execute("SELECT COUNT(*) c FROM books WHERE have_audiobook=1").fetchone()["c"],
             "wanted": conn.execute("SELECT COUNT(*) c FROM books WHERE status='wanted'").fetchone()["c"],
             "downloading": conn.execute("SELECT COUNT(*) c FROM books WHERE status='downloading'").fetchone()["c"],
             "downloaded": conn.execute("SELECT COUNT(*) c FROM books WHERE status='downloaded'").fetchone()["c"],
@@ -2342,8 +2605,10 @@ class BookarrHandler(BaseHTTPRequestHandler):
             where.append("b.status != ?")
             args.append(exclude_status)
         if book_type:
-            where.append("b.book_type = ?")
-            args.append(book_type)
+            if book_type == "ebook":
+                where.append("(b.want_ebook=1 OR b.have_ebook=1)")
+            elif book_type == "audiobook":
+                where.append("(b.want_audiobook=1 OR b.have_audiobook=1)")
         if search:
             where.append("(b.title LIKE ? OR a.name LIKE ?)")
             args.extend([f"%{search}%", f"%{search}%"])
@@ -2352,6 +2617,15 @@ class BookarrHandler(BaseHTTPRequestHandler):
             where.append("b.author_count = 1")
         elif category == "anthology":
             where.append("b.author_count > 1")
+        subject = params.get("subject", "")
+        if subject:
+            where.append("b.subjects LIKE ?")
+            args.append(f"%{subject}%")
+        decade = params.get("decade", "")
+        if decade:
+            d = int(decade)
+            where.append("b.year >= ? AND b.year < ?")
+            args.extend([d, d + 10])
 
         where_sql = " WHERE " + " AND ".join(where) if where else ""
 
@@ -2368,14 +2642,32 @@ class BookarrHandler(BaseHTTPRequestHandler):
         conn.close()
         json_response(self, {"total": total, "page": page, "per_page": per_page, "books": [dict(r) for r in rows]})
 
+    def _api_genres(self):
+        """Return the most common subjects across all books for genre filtering."""
+        conn = get_db()
+        rows = conn.execute(
+            "SELECT subjects FROM books WHERE subjects IS NOT NULL AND subjects != ''"
+        ).fetchall()
+        conn.close()
+        counts = {}
+        for row in rows:
+            for s in row["subjects"].split(","):
+                s = s.strip()
+                if s and len(s) > 2:
+                    sl = s.lower()
+                    counts[sl] = counts.get(sl, 0) + 1
+        # Sort by frequency, return top 30
+        top = sorted(counts.items(), key=lambda x: -x[1])[:30]
+        json_response(self, [{"name": name, "count": count} for name, count in top])
+
     def _api_authors_list(self):
         conn = get_db()
         rows = conn.execute("""
             SELECT a.*, COUNT(b.id) as book_count,
                    SUM(CASE WHEN b.status='downloaded' THEN 1 ELSE 0 END) as downloaded_count,
                    SUM(CASE WHEN b.status='wanted' THEN 1 ELSE 0 END) as wanted_count,
-                   SUM(CASE WHEN b.book_type='ebook' THEN 1 ELSE 0 END) as ebook_count,
-                   SUM(CASE WHEN b.book_type='audiobook' THEN 1 ELSE 0 END) as audiobook_count
+                   SUM(CASE WHEN b.have_ebook=1 THEN 1 ELSE 0 END) as ebook_count,
+                   SUM(CASE WHEN b.have_audiobook=1 THEN 1 ELSE 0 END) as audiobook_count
             FROM authors a LEFT JOIN books b ON b.author_id = a.id
             GROUP BY a.id ORDER BY a.name
         """).fetchall()
@@ -2659,22 +2951,39 @@ class BookarrHandler(BaseHTTPRequestHandler):
             conn.close()
             return
 
-        # Add the book (both ebook and audiobook if requested)
-        types = [book_type] if book_type != "both" else ["ebook", "audiobook"]
+        # Add the book as ONE row with format flags
+        want_ebook = 1 if book_type in ("ebook", "both") else 0
+        want_audiobook = 1 if book_type in ("audiobook", "both") else 0
         added = 0
-        for bt in types:
-            try:
+        try:
+            # Check if book already exists for this author
+            existing = conn.execute(
+                "SELECT id FROM books WHERE author_id=? AND title=?",
+                (author_id, title)).fetchone()
+            if existing:
+                # Update want flags on existing book
+                updates = []
+                if want_ebook:
+                    updates.append("want_ebook=1")
+                if want_audiobook:
+                    updates.append("want_audiobook=1")
+                if updates:
+                    conn.execute(
+                        f"UPDATE books SET {', '.join(updates)}, status='wanted' WHERE id=?",
+                        (existing["id"],))
+                    added = 1
+            else:
                 conn.execute(
-                    "INSERT OR IGNORE INTO books "
-                    "(author_id, title, ol_key, year, cover_id, status, book_type, author_count) "
-                    "VALUES (?, ?, ?, ?, ?, 'wanted', ?, ?)",
-                    (author_id, title, ol_key, year, cover_id, bt,
-                     data.get("author_count", 1))
+                    "INSERT INTO books "
+                    "(author_id, title, ol_key, year, cover_id, status, book_type, author_count, "
+                    "want_ebook, want_audiobook) "
+                    "VALUES (?, ?, ?, ?, ?, 'wanted', 'book', ?, ?, ?)",
+                    (author_id, title, ol_key, year, cover_id,
+                     data.get("author_count", 1), want_ebook, want_audiobook)
                 )
-                if conn.execute("SELECT changes()").fetchone()[0] > 0:
-                    added += 1
-            except sqlite3.IntegrityError:
-                pass
+                added = 1
+        except sqlite3.IntegrityError:
+            pass
 
         conn.commit()
         conn.close()
@@ -2711,7 +3020,7 @@ class BookarrHandler(BaseHTTPRequestHandler):
                      (name, ol_key, bio))
         author_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
-        # Fetch works — filter, dedup, add ebook entries (audiobooks checked in background)
+        # Fetch works — filter, dedup, add book entries (one row per title)
         books_added = 0
         lang_pref = get_setting("language", "english")
         if ol_key:
@@ -2721,8 +3030,9 @@ class BookarrHandler(BaseHTTPRequestHandler):
                 try:
                     conn.execute(
                         "INSERT OR IGNORE INTO books "
-                        "(author_id, title, ol_key, year, cover_id, status, book_type, author_count) "
-                        "VALUES (?, ?, ?, ?, ?, 'missing', 'ebook', ?)",
+                        "(author_id, title, ol_key, year, cover_id, status, book_type, author_count, "
+                        "want_ebook, want_audiobook, have_ebook, have_audiobook) "
+                        "VALUES (?, ?, ?, ?, ?, 'missing', 'book', ?, 0, 0, 0, 0)",
                         (author_id, w["title"], w["key"], w["year"],
                          w.get("cover_id"), w.get("author_count", 1))
                     )
@@ -2733,13 +3043,6 @@ class BookarrHandler(BaseHTTPRequestHandler):
         conn.commit()
         conn.close()
         json_response(self, {"id": author_id, "status": "added", "books": books_added})
-
-        # Check for audiobooks in background thread
-        threading.Thread(
-            target=_check_audiobooks_background,
-            args=(author_id, name),
-            daemon=True
-        ).start()
 
     def _api_add_author_ol(self, data):
         """Add author by Open Library key."""
@@ -2770,8 +3073,9 @@ class BookarrHandler(BaseHTTPRequestHandler):
             try:
                 conn.execute(
                     "INSERT OR IGNORE INTO books "
-                    "(author_id, title, ol_key, year, cover_id, status, book_type, author_count) "
-                    "VALUES (?, ?, ?, ?, ?, 'missing', 'ebook', ?)",
+                    "(author_id, title, ol_key, year, cover_id, status, book_type, author_count, "
+                    "want_ebook, want_audiobook, have_ebook, have_audiobook) "
+                    "VALUES (?, ?, ?, ?, ?, 'missing', 'book', ?, 0, 0, 0, 0)",
                     (author_id, w["title"], w["key"], w["year"],
                      w.get("cover_id"), w.get("author_count", 1))
                 )
@@ -2783,12 +3087,35 @@ class BookarrHandler(BaseHTTPRequestHandler):
         conn.close()
         json_response(self, {"id": author_id, "status": "added", "books": books_added})
 
-        # Check for audiobooks in background thread
-        threading.Thread(
-            target=_check_audiobooks_background,
-            args=(author_id, name),
-            daemon=True
-        ).start()
+    def _api_refresh_author(self, author_id):
+        """Re-fetch works from Open Library and add any new books."""
+        conn = get_db()
+        author = conn.execute("SELECT name, ol_key FROM authors WHERE id=?", (author_id,)).fetchone()
+        if not author or not author["ol_key"]:
+            conn.close()
+            json_response(self, {"error": "Author not found or has no Open Library key"}, 400)
+            return
+        works = get_author_works(author["ol_key"], limit=500)
+        lang_pref = get_setting("language", "english")
+        clean_works = _filter_and_dedup_works(works, lang_pref)
+        added = 0
+        for w in clean_works:
+            try:
+                conn.execute(
+                    "INSERT OR IGNORE INTO books "
+                    "(author_id, title, ol_key, year, cover_id, status, book_type, author_count, "
+                    "want_ebook, want_audiobook, have_ebook, have_audiobook) "
+                    "VALUES (?, ?, ?, ?, ?, 'missing', 'book', ?, 0, 0, 0, 0)",
+                    (author_id, w["title"], w["key"], w["year"],
+                     w.get("cover_id"), w.get("author_count", 1))
+                )
+                added += 1
+            except sqlite3.IntegrityError:
+                pass
+        conn.commit()
+        total = conn.execute("SELECT COUNT(*) c FROM books WHERE author_id=?", (author_id,)).fetchone()["c"]
+        conn.close()
+        json_response(self, {"added": added, "total": total})
 
     def _api_toggle_author(self, author_id):
         conn = get_db()
@@ -2806,60 +3133,74 @@ class BookarrHandler(BaseHTTPRequestHandler):
         conn.close()
         json_response(self, {"status": "deleted"})
 
-    def _api_want_book(self, book_id):
+    def _api_want_book(self, book_id, data=None):
+        data = data or {}
+        fmt = data.get("format", "")
         conn = get_db()
-        conn.execute("UPDATE books SET status='wanted' WHERE id=? AND status='missing'", (book_id,))
-        wanted = 1
 
-        # Check want_format setting — also want the sibling format if applicable
-        sibling_id = None
-        pref = get_setting("want_format", "both")
-        if pref == "both":
-            book = conn.execute(
-                "SELECT author_id, title, book_type FROM books WHERE id=?", (book_id,)
-            ).fetchone()
-            if book:
-                sibling_type = "audiobook" if book["book_type"] == "ebook" else "ebook"
-                conn.execute(
-                    "UPDATE books SET status='wanted' WHERE author_id=? AND title=? "
-                    "AND book_type=? AND status='missing'",
-                    (book["author_id"], book["title"], sibling_type)
-                )
-                wanted += conn.execute("SELECT changes()").fetchone()[0]
-                sib = conn.execute(
-                    "SELECT id FROM books WHERE author_id=? AND title=? AND book_type=? AND status='wanted'",
-                    (book["author_id"], book["title"], sibling_type)
-                ).fetchone()
-                if sib:
-                    sibling_id = sib["id"]
+        # If no format specified, use want_format setting
+        if not fmt:
+            pref = get_setting("want_format", "both")
+            fmt = pref  # "ebook", "audiobook", or "both"
+
+        updates = []
+        if fmt in ("ebook", "both"):
+            updates.append("want_ebook=1")
+        if fmt in ("audiobook", "both"):
+            updates.append("want_audiobook=1")
+
+        if updates:
+            conn.execute(f"UPDATE books SET {', '.join(updates)}, status='wanted' WHERE id=?", (book_id,))
 
         conn.commit()
         conn.close()
-        json_response(self, {"status": "wanted", "wanted": wanted})
+        json_response(self, {"status": "wanted", "format": fmt})
 
         # Trigger immediate search in background
         threading.Thread(target=search_engine.search_single_book, args=(book_id,), daemon=True).start()
-        if sibling_id:
-            threading.Thread(target=search_engine.search_single_book, args=(sibling_id,), daemon=True).start()
 
-    def _api_unwant_book(self, book_id):
+    def _api_unwant_book(self, book_id, data=None):
+        data = data or {}
+        fmt = data.get("format", "both")
         conn = get_db()
-        conn.execute("UPDATE books SET status='missing' WHERE id=? AND status='wanted'", (book_id,))
+
+        updates = []
+        if fmt in ("ebook", "both"):
+            updates.append("want_ebook=0")
+        if fmt in ("audiobook", "both"):
+            updates.append("want_audiobook=0")
+
+        if updates:
+            conn.execute(f"UPDATE books SET {', '.join(updates)} WHERE id=?", (book_id,))
+
+        # Determine new status: if no wants remain, set to missing (or downloaded if have flags)
+        book = conn.execute("SELECT want_ebook, want_audiobook, have_ebook, have_audiobook FROM books WHERE id=?",
+                            (book_id,)).fetchone()
+        if book and not book["want_ebook"] and not book["want_audiobook"]:
+            if book["have_ebook"] or book["have_audiobook"]:
+                conn.execute("UPDATE books SET status='downloaded' WHERE id=?", (book_id,))
+            else:
+                conn.execute("UPDATE books SET status='missing' WHERE id=?", (book_id,))
+
         conn.commit()
         conn.close()
-        json_response(self, {"status": "missing"})
+        json_response(self, {"status": "unwanted", "format": fmt})
 
     def _api_want_all(self, data):
         author_id = data.get("author_id")
-        book_type = data.get("book_type", "")  # "" = all types, "ebook", "audiobook"
+        fmt = data.get("format", data.get("book_type", "both"))  # "ebook", "audiobook", or "both"
         conn = get_db()
         if author_id:
-            if book_type:
-                conn.execute("UPDATE books SET status='wanted' WHERE author_id=? AND status='missing' AND book_type=?",
-                             (author_id, book_type))
-            else:
-                conn.execute("UPDATE books SET status='wanted' WHERE author_id=? AND status='missing'",
-                             (author_id,))
+            updates = []
+            if fmt in ("ebook", "both"):
+                updates.append("want_ebook=1")
+            if fmt in ("audiobook", "both"):
+                updates.append("want_audiobook=1")
+            if updates:
+                conn.execute(
+                    f"UPDATE books SET {', '.join(updates)}, status='wanted' "
+                    f"WHERE author_id=? AND status='missing'",
+                    (author_id,))
         conn.commit()
         count = conn.execute("SELECT changes()").fetchone()[0]
         conn.close()
@@ -2868,47 +3209,6 @@ class BookarrHandler(BaseHTTPRequestHandler):
         # Trigger background search for all wanted books
         if count > 0:
             threading.Thread(target=search_engine._search_wanted, daemon=True).start()
-
-    def _api_add_audiobooks(self, data):
-        """Create audiobook entries for an author's books, checking Open Library + Audible."""
-        author_id = data.get("author_id")
-        if not author_id:
-            json_response(self, {"error": "author_id required"}, 400)
-            return
-        conn = get_db()
-        author = conn.execute("SELECT name FROM authors WHERE id=?", (author_id,)).fetchone()
-        author_name = author["name"] if author else ""
-        ebooks = conn.execute(
-            "SELECT title, ol_key, year, cover_id, author_count FROM books WHERE author_id=? AND book_type='ebook'",
-            (author_id,)
-        ).fetchall()
-        added = 0
-        checked = 0
-        for eb in ebooks:
-            # Skip if audiobook entry already exists
-            existing = conn.execute(
-                "SELECT id FROM books WHERE author_id=? AND title=? AND book_type='audiobook'",
-                (author_id, eb["title"])
-            ).fetchone()
-            if existing:
-                continue
-            checked += 1
-            if check_audiobook_exists(author_name, eb["title"], ol_key=eb["ol_key"]):
-                try:
-                    conn.execute(
-                        "INSERT OR IGNORE INTO books "
-                        "(author_id, title, ol_key, year, cover_id, status, book_type, author_count) "
-                        "VALUES (?, ?, ?, ?, ?, 'missing', 'audiobook', ?)",
-                        (author_id, eb["title"], eb["ol_key"], eb["year"],
-                         eb["cover_id"], eb["author_count"] or 1)
-                    )
-                    added += 1
-                except sqlite3.IntegrityError:
-                    pass
-            time.sleep(0.3)
-        conn.commit()
-        conn.close()
-        json_response(self, {"added": added, "checked": checked})
 
     def _api_retry_download(self, download_id):
         """Retry a failed download by resetting the book to wanted and searching again."""
@@ -3001,12 +3301,21 @@ class BookarrHandler(BaseHTTPRequestHandler):
             "torrent_category", "seed_ratio_limit", "seed_time_limit",
             # Notifications
             "pushover_token", "pushover_user",
+            # Library organization
+            "folder_structure",
         }
         updated = 0
+        old_ebook = get_setting("ebook_path", "")
+        old_audio = get_setting("audiobook_path", "")
         for key, value in data.items():
             if key in valid_keys:
                 set_setting(key, value)
                 updated += 1
+        # Auto-import when library paths are set or changed
+        new_ebook = data.get("ebook_path", old_ebook)
+        new_audio = data.get("audiobook_path", old_audio)
+        if (new_ebook and new_ebook != old_ebook) or (new_audio and new_audio != old_audio):
+            threading.Thread(target=import_library_from_disk, daemon=True).start()
         json_response(self, {"updated": updated, "settings": get_all_settings()})
 
     def _api_browse(self, browse_path):
@@ -3499,93 +3808,6 @@ SEED_CATEGORIES = {
     },
 }
 
-def _check_audiobooks_background(author_id, author_name):
-    """Background thread: check Open Library + Audible for audiobooks and add entries."""
-    # Step 1: Read ebook titles (quick DB read, then close)
-    conn = get_db()
-    ebooks = conn.execute(
-        "SELECT title, ol_key, year, cover_id, author_count FROM books "
-        "WHERE author_id=? AND book_type='ebook'", (author_id,)
-    ).fetchall()
-    existing_audio = set()
-    for row in conn.execute(
-        "SELECT title FROM books WHERE author_id=? AND book_type='audiobook'", (author_id,)
-    ).fetchall():
-        existing_audio.add(row["title"])
-    conn.close()
-
-    # Filter to only titles that need checking
-    to_check = [eb for eb in ebooks if eb["title"] not in existing_audio]
-    if not to_check:
-        return
-
-    # Step 2: Check Open Library + Audible concurrently
-    def _check_one(eb):
-        return (eb, check_audiobook_exists(author_name, eb["title"], ol_key=eb["ol_key"]))
-
-    to_add = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-        for eb, found in pool.map(_check_one, to_check):
-            if found:
-                to_add.append(eb)
-
-    # Step 3: Batch insert with retry (quick DB write, then close)
-    if to_add:
-        for attempt in range(5):
-            try:
-                conn = get_db()
-                for eb in to_add:
-                    try:
-                        conn.execute(
-                            "INSERT OR IGNORE INTO books "
-                            "(author_id, title, ol_key, year, cover_id, status, book_type, author_count) "
-                            "VALUES (?, ?, ?, ?, ?, 'missing', 'audiobook', ?)",
-                            (author_id, eb["title"], eb["ol_key"], eb["year"],
-                             eb["cover_id"], eb["author_count"] or 1)
-                        )
-                    except sqlite3.IntegrityError:
-                        pass
-                conn.commit()
-                conn.close()
-                break
-            except sqlite3.OperationalError:
-                try:
-                    conn.close()
-                except Exception:
-                    pass
-                time.sleep(2 + attempt * 2)
-    print(f"[Audiobook] {author_name}: found {len(to_add)} audiobooks")
-
-def _check_all_audiobooks_background():
-    """Background thread: check Open Library + Audible for audiobooks across ALL authors missing audiobook entries."""
-    conn = get_db()
-    # Find authors who have ebooks but no audiobooks yet
-    authors = conn.execute("""
-        SELECT DISTINCT a.id, a.name FROM authors a
-        JOIN books b ON b.author_id = a.id AND b.book_type = 'ebook'
-        WHERE a.id NOT IN (
-            SELECT DISTINCT author_id FROM books WHERE book_type = 'audiobook'
-        )
-        ORDER BY a.name
-    """).fetchall()
-    conn.close()
-    # Wait for any active seed to finish before hammering the DB
-    if _seed_lock.locked():
-        print("[Audiobook] Waiting for seed to finish before checking audiobooks...")
-    with _seed_lock:
-        pass  # Just wait for it to be free
-    print(f"[Audiobook] Bulk audiobook check: {len(authors)} authors without audiobooks")
-    for i, author in enumerate(authors):
-        # Pause if a seed starts while we're running
-        if _seed_lock.locked():
-            print("[Audiobook] Pausing audiobook check — seed in progress...")
-            with _seed_lock:
-                pass
-        _check_audiobooks_background(author["id"], author["name"])
-        if (i + 1) % 10 == 0:
-            print(f"[Audiobook] Bulk progress: {i+1}/{len(authors)} authors checked")
-    print(f"[Audiobook] Bulk audiobook check complete: {len(authors)} authors processed")
-
 def _filter_and_dedup_works(works, lang_pref="english"):
     """Filter works for language, junk, and deduplicate by normalized title.
     Returns list of unique, clean works."""
@@ -3689,7 +3911,7 @@ def seed_authors(author_list=None, category_key=None):
             unique.append(name)
 
     _seed_lock.acquire()
-    print(f"[Seed] Adding {len(unique)} unique authors (ebooks only, audiobooks checked in background)...")
+    print(f"[Seed] Adding {len(unique)} unique authors...")
     conn = get_db()
     added = 0
     skipped = 0
@@ -3726,7 +3948,7 @@ def seed_authors(author_list=None, category_key=None):
                 skipped += 1
                 continue
 
-            # Fetch works, filter, and deduplicate — ebooks only
+            # Fetch works, filter, and deduplicate — one row per title
             lang_pref = get_setting("language", "english")
             if ol_key:
                 works = get_author_works(ol_key, limit=100)
@@ -3735,8 +3957,9 @@ def seed_authors(author_list=None, category_key=None):
                     try:
                         conn.execute(
                             "INSERT OR IGNORE INTO books "
-                            "(author_id, title, ol_key, year, cover_id, status, book_type, author_count) "
-                            "VALUES (?, ?, ?, ?, ?, 'missing', 'ebook', ?)",
+                            "(author_id, title, ol_key, year, cover_id, status, book_type, author_count, "
+                            "want_ebook, want_audiobook, have_ebook, have_audiobook) "
+                            "VALUES (?, ?, ?, ?, ?, 'missing', 'book', ?, 0, 0, 0, 0)",
                             (author_id, w["title"], w["key"], w["year"],
                              w.get("cover_id"), w.get("author_count", 1))
                         )
@@ -3776,8 +3999,9 @@ def seed_authors(author_list=None, category_key=None):
                             try:
                                 conn.execute(
                                     "INSERT OR IGNORE INTO books "
-                                    "(author_id, title, ol_key, year, cover_id, status, book_type, author_count) "
-                                    "VALUES (?, ?, ?, ?, ?, 'missing', 'ebook', ?)",
+                                    "(author_id, title, ol_key, year, cover_id, status, book_type, author_count, "
+                                    "want_ebook, want_audiobook, have_ebook, have_audiobook) "
+                                    "VALUES (?, ?, ?, ?, ?, 'missing', 'book', ?, 0, 0, 0, 0)",
                                     (author_id, w["title"], w["key"], w["year"],
                                      w.get("cover_id"), w.get("author_count", 1))
                                 )
@@ -3795,12 +4019,7 @@ def seed_authors(author_list=None, category_key=None):
     conn.close()
     _seed_lock.release()
     print(f"[Seed] Complete: {added} authors added, {skipped} skipped, "
-          f"{total_ebooks} ebooks")
-
-    # Kick off background audiobook checking after seeding finishes
-    if added > 0:
-        print("[Seed] Starting background audiobook check for all authors...")
-        threading.Thread(target=_check_all_audiobooks_background, daemon=True).start()
+          f"{total_ebooks} books")
 
 def fetch_trending_authors():
     """Fetch trending authors from Open Library's trending API."""
@@ -3845,18 +4064,6 @@ def main():
     # Start background search
     if not args.no_search:
         search_engine.start()
-
-    # Auto-check audiobooks for any authors that don't have them yet
-    conn = get_db()
-    missing_count = conn.execute("""
-        SELECT COUNT(DISTINCT a.id) FROM authors a
-        JOIN books b ON b.author_id = a.id AND b.book_type = 'ebook'
-        WHERE a.id NOT IN (SELECT DISTINCT author_id FROM books WHERE book_type = 'audiobook')
-    """).fetchone()[0]
-    conn.close()
-    if missing_count > 0:
-        print(f"[Bookarr] {missing_count} authors missing audiobook data — starting background check...")
-        threading.Thread(target=_check_all_audiobooks_background, daemon=True).start()
 
     # Start web server
     server = ThreadedHTTPServer(("0.0.0.0", args.port), BookarrHandler)
